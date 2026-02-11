@@ -21,12 +21,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm test -- --coverage
+      - run: pnpm vitest run --coverage
 
       - name: Extract coverage
         id: coverage
         run: |
-          COVERAGE=$(node -e "const c=require('./coverage/coverage-summary.json');console.log(c.total.statements.pct)")
+          COVERAGE=$(node -p "require('./coverage/coverage-summary.json').total.statements.pct")
           echo "pct=$COVERAGE" >> "$GITHUB_OUTPUT"
 
       - name: Update coverage badge
