@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org/)
 [![CI](https://github.com/bartwaardenburg/spaceship-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/bartwaardenburg/spaceship-mcp/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/BartWaardenburg/6816ec0a7270dc8888a2e34f5bd5383b/raw/spaceship-mcp-coverage.json)]()
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/BartWaardenburg/6816ec0a7270dc8888a2e34f5bd5383b/raw/spaceship-mcp-coverage.json)](https://bartwaardenburg.github.io/spaceship-mcp/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io)
 
 A community-built [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for the [Spaceship](https://spaceship.com) API. Manage domains, DNS records, contacts, marketplace listings, and more — all through natural language via any MCP-compatible AI client.
