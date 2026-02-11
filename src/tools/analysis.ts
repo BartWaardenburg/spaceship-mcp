@@ -9,6 +9,7 @@ import {
 } from "../dns-utils.js";
 import { WebRecordTypeSchema, ExpectedRecordSchema, expectedToRecord } from "../schemas.js";
 import { toTextResult, toErrorResult } from "../tool-result.js";
+import { checkDnsAlignmentOutput } from "../output-schemas.js";
 
 export const registerAnalysisTools = (server: McpServer, client: SpaceshipClient): void => {
   server.registerTool(
@@ -18,6 +19,7 @@ export const registerAnalysisTools = (server: McpServer, client: SpaceshipClient
       description:
         "Compare a list of expected DNS records against the actual records configured in Spaceship. Returns which expected records are missing and which unexpected records exist. Useful for verifying DNS configurations match your infrastructure requirements.",
       annotations: { readOnlyHint: true, openWorldHint: true },
+      outputSchema: checkDnsAlignmentOutput,
       inputSchema: z.object({
         domain: z.string().min(4).max(255),
         expectedRecords: z.array(ExpectedRecordSchema).min(1),
