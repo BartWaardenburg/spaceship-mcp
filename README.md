@@ -162,7 +162,81 @@ Two environment variables are required:
 | `SPACESHIP_API_KEY` | Your Spaceship API key |
 | `SPACESHIP_API_SECRET` | Your Spaceship API secret |
 
-You can obtain API credentials from your [Spaceship account settings](https://spaceship.com).
+Generate your credentials in the [Spaceship API Manager](https://www.spaceship.com/application/api-manager/).
+
+## API Key Setup
+
+### Creating Your API Key
+
+1. Log in to your [Spaceship account](https://www.spaceship.com)
+2. Navigate to **API Manager** ([direct link](https://www.spaceship.com/application/api-manager/))
+3. Click **New API key**
+4. Give the key a descriptive name (e.g. "MCP Server")
+5. Select the scopes you need (see below)
+6. Copy both the **API key** and **API secret** — the secret is only shown once
+
+### Available Scopes
+
+Each scope controls access to a specific part of the Spaceship API. When creating your key, enable only the scopes you need.
+
+| Scope | Access |
+|---|---|
+| `domains:read` | List domains, check availability, view domain details and settings |
+| `domains:write` | Modify domain settings (nameservers, auto-renew, contacts, privacy) |
+| `domains:billing` | Register, renew, restore, and transfer domains (financial operations) |
+| `domains:transfer` | Transfer lock, auth codes, and transfer status |
+| `contacts:read` | Read saved contact profiles and attributes |
+| `contacts:write` | Create and update contact profiles and attributes |
+| `dnsrecords:read` | List DNS records for your domains |
+| `dnsrecords:write` | Create, update, and delete DNS records |
+| `sellerhub:read` | View marketplace listings and verification records |
+| `sellerhub:write` | List/delist domains for sale, update pricing, generate checkout links |
+| `asyncoperations:read` | Poll status of async operations (registration, renewal, transfer) |
+
+### Scopes Per Feature
+
+The table below shows which scopes are required for each group of tools.
+
+| Feature | Tools | Required scopes |
+|---|---|---|
+| **DNS Records** | `list_dns_records` | `dnsrecords:read` |
+| | `save_dns_records`, `delete_dns_records`, all `create_*_record` tools | `dnsrecords:read` `dnsrecords:write` |
+| **Domain Info** | `list_domains`, `get_domain`, `check_domain_availability` | `domains:read` |
+| **Domain Settings** | `update_nameservers`, `set_auto_renew`, `set_privacy_level`, `set_email_protection`, `update_domain_contacts` | `domains:write` |
+| **Domain Lifecycle** | `register_domain`, `renew_domain`, `restore_domain`, `transfer_domain` | `domains:billing` |
+| **Transfer** | `set_transfer_lock`, `get_auth_code`, `get_transfer_status` | `domains:transfer` |
+| **Contacts** | `get_contact`, `get_contact_attributes` | `contacts:read` |
+| | `save_contact`, `save_contact_attributes` | `contacts:write` |
+| **Personal NS** | `list_personal_nameservers` | `domains:read` |
+| | `update_personal_nameserver`, `delete_personal_nameserver` | `domains:write` |
+| **SellerHub** | `list_sellerhub_domains`, `get_sellerhub_domain`, `get_verification_records` | `sellerhub:read` |
+| | `create_sellerhub_domain`, `update_sellerhub_domain`, `delete_sellerhub_domain`, `create_checkout_link` | `sellerhub:write` |
+| **Async Operations** | `get_async_operation` | `asyncoperations:read` |
+| **Analysis** | `check_dns_alignment` | `dnsrecords:read` |
+
+### Recommended Scope Presets
+
+**Full access** — enable everything for unrestricted use:
+
+```
+domains:read  domains:write  domains:billing  domains:transfer
+contacts:read  contacts:write
+dnsrecords:read  dnsrecords:write
+sellerhub:read  sellerhub:write
+asyncoperations:read
+```
+
+**DNS management only** — just read/write DNS records:
+
+```
+dnsrecords:read  dnsrecords:write
+```
+
+**Read-only** — browse domains and records without making changes:
+
+```
+domains:read  contacts:read  dnsrecords:read  sellerhub:read  asyncoperations:read
+```
 
 ## Available Tools
 
