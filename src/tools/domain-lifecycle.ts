@@ -3,7 +3,6 @@ import * as z from "zod/v4";
 import type { SpaceshipClient } from "../spaceship-client.js";
 import { normalizeDomain } from "../dns-utils.js";
 import { toTextResult, toErrorResult } from "../tool-result.js";
-import { asyncOperationStartOutput, getTransferStatusOutput, getAsyncOperationOutput } from "../output-schemas.js";
 
 const ContactIdsSchema = z.object({
   registrant: z.string().min(1).optional().describe("Registrant contact ID"),
@@ -23,7 +22,7 @@ export const registerDomainLifecycleTools = (server: McpServer, client: Spaceshi
         "This operation is asynchronous: it returns an operationId that must be polled with get_async_operation to check completion status. " +
         "Always confirm with the user before calling this tool. Use check_domain_availability first to verify the domain is available.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      outputSchema: asyncOperationStartOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to register (e.g. 'example.com')"),
         years: z.number().int().min(1).max(10).default(1).describe("Number of years to register for (1-10, default 1)"),
@@ -68,7 +67,7 @@ export const registerDomainLifecycleTools = (server: McpServer, client: Spaceshi
         "Always confirm with the user before calling this tool — show the domain name, renewal years, and estimated cost. " +
         "This operation is asynchronous: it returns an operationId that must be polled with get_async_operation to check completion status.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      outputSchema: asyncOperationStartOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to renew"),
         years: z.number().int().min(1).max(10).describe("Number of years to renew for (1-10)"),
@@ -108,7 +107,7 @@ export const registerDomainLifecycleTools = (server: McpServer, client: Spaceshi
         "Always confirm with the user before calling this tool — restoration fees are typically much higher than standard registration. " +
         "This operation is asynchronous: it returns an operationId that must be polled with get_async_operation to check completion status.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      outputSchema: asyncOperationStartOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to restore from redemption period"),
       }),
@@ -143,7 +142,7 @@ export const registerDomainLifecycleTools = (server: McpServer, client: Spaceshi
         "Always confirm with the user before calling this tool — show the domain name and explain the transfer process. " +
         "This operation is asynchronous: it returns an operationId. Use get_transfer_status to check the transfer progress and get_async_operation to check the operation status.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      outputSchema: asyncOperationStartOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to transfer to Spaceship"),
         authCode: z.string().max(255).optional().describe("Authorization/EPP code from the current registrar. Required for most TLDs, but some (e.g. .uk) do not need one."),
@@ -184,7 +183,7 @@ export const registerDomainLifecycleTools = (server: McpServer, client: Spaceshi
       title: "Get Transfer Status",
       description: "Check the current status of a domain transfer to Spaceship. Use this after initiating a transfer with transfer_domain to monitor its progress.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: getTransferStatusOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to check transfer status for"),
       }),
@@ -219,7 +218,7 @@ export const registerDomainLifecycleTools = (server: McpServer, client: Spaceshi
         "Call this tool with the operationId to check if the operation has completed. " +
         "Possible statuses: 'pending' (still processing), 'success' (completed successfully), 'failed' (operation failed — check details for reason).",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: getAsyncOperationOutput,
+
       inputSchema: z.object({
         operationId: z.string().min(1).describe("The operation ID returned by an async operation (register_domain, renew_domain, restore_domain, or transfer_domain)"),
       }),

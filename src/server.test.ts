@@ -96,27 +96,16 @@ describe("createServer", () => {
     }
   });
 
-  it("registers only 3 meta-tools in dynamic mode", () => {
-    const tools = (createServer(mockClient, undefined, true) as unknown as ServerWithTools)._registeredTools;
-    expect(Object.keys(tools)).toHaveLength(3);
-    expect(Object.keys(tools)).toEqual(
-      expect.arrayContaining(["search_tools", "describe_tools", "execute_tool"]),
-    );
-  });
-
-  it("registers all 9 prompts (5 guided + 4 completable)", () => {
+  it("registers all 8 prompts", () => {
     type ServerWithPrompts = { _registeredPrompts: Record<string, unknown> };
     const server = createServer(mockClient) as unknown as ServerWithPrompts;
     const prompts = Object.keys(server._registeredPrompts);
-    expect(prompts).toHaveLength(9);
-    // Guided prompts
+    expect(prompts).toHaveLength(8);
     expect(prompts).toContain("setup-domain");
     expect(prompts).toContain("audit-domain");
     expect(prompts).toContain("setup-email");
     expect(prompts).toContain("migrate-dns");
     expect(prompts).toContain("list-for-sale");
-    // Completable prompts
-    expect(prompts).toContain("domain-lookup");
     expect(prompts).toContain("dns-records");
     expect(prompts).toContain("set-privacy");
     expect(prompts).toContain("update-nameservers");

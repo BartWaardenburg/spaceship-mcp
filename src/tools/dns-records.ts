@@ -4,7 +4,6 @@ import type { SpaceshipClient } from "../spaceship-client.js";
 import type { DnsRecord } from "../types.js";
 import { normalizeDomain, summarizeByType, extractComparableFields } from "../dns-utils.js";
 import { toTextResult, toErrorResult } from "../tool-result.js";
-import { listDnsRecordsOutput, saveDnsRecordsOutput, deleteDnsRecordsOutput } from "../output-schemas.js";
 
 export const registerDnsRecordTools = (server: McpServer, client: SpaceshipClient): void => {
   server.registerTool(
@@ -14,7 +13,7 @@ export const registerDnsRecordTools = (server: McpServer, client: SpaceshipClien
       description:
         "List all DNS records for a domain. Uses pagination and can fetch all pages automatically.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: listDnsRecordsOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("Domain name, e.g. example.com"),
         fetchAll: z.boolean().default(true).describe("Fetch all pages (recommended)."),
@@ -74,7 +73,7 @@ export const registerDnsRecordTools = (server: McpServer, client: SpaceshipClien
         "Use this for bulk operations with mixed record types. For single records, prefer the type-specific tools (create_a_record, create_cname_record, etc.). " +
         "Always confirm with the user before calling this tool and use list_dns_records first to check existing records.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-      outputSchema: saveDnsRecordsOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
         records: z
@@ -164,7 +163,7 @@ export const registerDnsRecordTools = (server: McpServer, client: SpaceshipClien
         "WARNING: This permanently removes DNS records, which can break services relying on them. " +
         "Always confirm with the user before calling this tool and use list_dns_records first to verify which records will be deleted.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-      outputSchema: deleteDnsRecordsOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
         records: z

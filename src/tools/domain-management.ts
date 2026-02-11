@@ -3,10 +3,6 @@ import * as z from "zod/v4";
 import type { SpaceshipClient } from "../spaceship-client.js";
 import { normalizeDomain } from "../dns-utils.js";
 import { toTextResult, toErrorResult } from "../tool-result.js";
-import {
-  listDomainsOutput, getDomainOutput, checkDomainAvailabilityOutput,
-  updateNameserversOutput, setAutoRenewOutput, setTransferLockOutput, getAuthCodeOutput,
-} from "../output-schemas.js";
 
 export const registerDomainManagementTools = (server: McpServer, client: SpaceshipClient): void => {
   server.registerTool(
@@ -15,7 +11,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
       title: "List Domains",
       description: "List all domains in the Spaceship account.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: listDomainsOutput,
+
       inputSchema: z.object({
         fetchAll: z.boolean().default(true).describe("Fetch all pages."),
         take: z.number().int().min(1).max(100).default(100).describe("Items per page when fetchAll=false."),
@@ -56,7 +52,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
       title: "Get Domain Details",
       description: "Get detailed information about a specific domain including registration/expiration dates, auto-renewal status, privacy protection level, nameservers, lifecycle status, and contacts.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: getDomainOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
       }),
@@ -93,7 +89,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
       title: "Check Domain Availability",
       description: "Check if one or more domains are available for registration and show pricing. Provide up to 20 domains to check at once.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: checkDomainAvailabilityOutput,
+
       inputSchema: z.object({
         domains: z
           .array(z.string().min(4).max(255))
@@ -142,7 +138,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
         "WARNING: Changing nameservers affects DNS resolution for ALL services on this domain and may cause extended downtime if misconfigured. " +
         "Always confirm with the user before calling this tool and use get_domain first to check current nameservers.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-      outputSchema: updateNameserversOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
         provider: z
@@ -185,7 +181,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
         "WARNING: Disabling auto-renewal risks losing the domain when it expires — the domain may become available for others to register. " +
         "Always confirm with the user before disabling auto-renewal.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      outputSchema: setAutoRenewOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
         enabled: z.boolean().describe("Enable (true) or disable (false) auto-renewal"),
@@ -214,7 +210,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
         "WARNING: Disabling the transfer lock makes the domain vulnerable to unauthorized transfers away from this account. " +
         "Only unlock when intentionally transferring the domain. Always confirm with the user before unlocking.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      outputSchema: setTransferLockOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
         locked: z.boolean().describe("Lock (true) or unlock (false) the domain"),
@@ -243,7 +239,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
         "WARNING: The auth code is a sensitive credential — anyone with this code can initiate a domain transfer. " +
         "Never share the auth code publicly or log it in plain text. Always confirm with the user before retrieving.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: getAuthCodeOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
       }),

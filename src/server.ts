@@ -9,11 +9,7 @@ import { registerContactsPrivacyTools } from "./tools/contacts-privacy.js";
 import { registerSellerHubTools } from "./tools/sellerhub.js";
 import { registerPersonalNameserverTools } from "./tools/personal-nameservers.js";
 import { registerAnalysisTools } from "./tools/analysis.js";
-import { registerDynamicTools } from "./dynamic-tools.js";
-import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
-import { registerCompletablePrompts } from "./completions.js";
-import { registerResourceSubscriptions } from "./resource-subscriptions.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -52,35 +48,27 @@ const toolsetRegistry: Record<Toolset, ToolRegisterer[]> = {
 export const createServer = (
   client: SpaceshipClient,
   toolsets?: Set<Toolset>,
-  dynamicTools = false,
 ): McpServer => {
   const server = new McpServer({
     name: "spaceship-mcp",
     version,
   });
 
-  if (dynamicTools) {
-    registerDynamicTools(server, client);
-  } else {
-    const enabled = toolsets ?? new Set(ALL_TOOLSETS);
-    const registered = new Set<ToolRegisterer>();
+  const enabled = toolsets ?? new Set(ALL_TOOLSETS);
+  const registered = new Set<ToolRegisterer>();
 
-    for (const toolset of enabled) {
-      const registerers = toolsetRegistry[toolset];
+  for (const toolset of enabled) {
+    const registerers = toolsetRegistry[toolset];
 
-      for (const register of registerers) {
-        if (!registered.has(register)) {
-          registered.add(register);
-          register(server, client);
-        }
+    for (const register of registerers) {
+      if (!registered.has(register)) {
+        registered.add(register);
+        register(server, client);
       }
     }
   }
 
-  registerResources(server, client);
-  registerResourceSubscriptions(server, client);
-  registerPrompts(server);
-  registerCompletablePrompts(server, client);
+  registerPrompts(server, client);
 
   return server;
 };

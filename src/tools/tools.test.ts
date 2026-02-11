@@ -1329,6 +1329,27 @@ describe("Contacts & Privacy Tools", () => {
       expect(getText(result)).toContain("ID: N/A");
     });
 
+    it("handles missing stateProvince and postalCode", async () => {
+      client.getContact.mockResolvedValue({
+        contactId: "c-456",
+        firstName: "Max",
+        lastName: "Müller",
+        email: "max@example.de",
+        address1: "Hauptstr. 1",
+        city: "Berlin",
+        country: "DE",
+        phone: "+49.301234567",
+      });
+
+      const result = (await server.getHandler("get_contact")({
+        contactId: "c-456",
+      })) as ToolResult;
+
+      const text = getText(result);
+      expect(text).toContain("City: Berlin,");
+      expect(text).toContain("Country: DE");
+    });
+
     it("returns error on failure", async () => {
       client.getContact.mockRejectedValue(apiError);
 

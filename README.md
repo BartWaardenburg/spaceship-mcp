@@ -19,8 +19,17 @@ A community-built [Model Context Protocol](https://modelcontextprotocol.io) (MCP
 - **SellerHub integration** — list domains for sale and generate checkout links
 - **DNS alignment analysis** — compare expected vs actual records to catch misconfigurations
 - **WHOIS privacy and contact management** with TLD-specific attribute support
-- **Input validation** via Zod schemas on every tool for safe, predictable operations
-- **344 unit tests** for reliability
+- **Input and output validation** via Zod schemas on every tool for safe, predictable operations
+- **5 MCP Resources** for passive context loading (domain list, domain details, DNS records, contacts, SellerHub)
+- **9 MCP Prompts** — 5 guided workflows and 4 with argument auto-complete
+- **Resource subscriptions** with polling-based change detection and automatic notifications
+- **Response caching** with configurable TTL and automatic invalidation on writes
+- **Rate limit handling** with exponential backoff and `Retry-After` header support
+- **Toolset filtering** to expose only the tool categories you need
+- **Dynamic tool loading** mode for agents with constrained context windows
+- **Actionable error messages** with context-aware recovery suggestions
+- **Docker support** for containerized deployment
+- **453 unit tests** with near-complete coverage
 
 ## Supported Clients
 
@@ -135,6 +144,15 @@ Add to your Zed settings (`~/.zed/settings.json` on macOS, `~/.config/zed/settin
 }
 ```
 
+### Docker
+
+```bash
+docker run -i --rm \
+  -e SPACESHIP_API_KEY=your-key \
+  -e SPACESHIP_API_SECRET=your-secret \
+  ghcr.io/bartwaardenburg/spaceship-mcp
+```
+
 ### Codex CLI (TOML config alternative)
 
 If you prefer editing `~/.codex/config.toml` directly:
@@ -156,7 +174,7 @@ For any MCP-compatible client, use this server configuration:
 
 ## Configuration
 
-Two environment variables are required:
+### Required
 
 | Variable | Description |
 |---|---|
@@ -164,6 +182,15 @@ Two environment variables are required:
 | `SPACESHIP_API_SECRET` | Your Spaceship API secret |
 
 Generate your credentials in the [Spaceship API Manager](https://www.spaceship.com/application/api-manager/).
+
+### Optional
+
+| Variable | Description | Default |
+|---|---|---|
+| `SPACESHIP_CACHE_TTL` | Response cache lifetime in seconds. Set to `0` to disable caching. | `120` |
+| `SPACESHIP_MAX_RETRIES` | Maximum retry attempts for rate-limited (429) requests with exponential backoff. | `3` |
+| `SPACESHIP_TOOLSETS` | Comma-separated list of tool categories to enable (see [Toolset Filtering](#toolset-filtering)). | All toolsets |
+| `SPACESHIP_DYNAMIC_TOOLS` | Set to `true` to enable dynamic tool loading mode (see [Dynamic Tool Loading](#dynamic-tool-loading)). | `false` |
 
 ## API Key Setup
 
@@ -208,7 +235,7 @@ The table below shows which scopes are required for each group of tools.
 | **Transfer** | `set_transfer_lock`, `get_auth_code`, `get_transfer_status` | `domains:transfer` |
 | **Contacts** | `get_contact`, `get_contact_attributes` | `contacts:read` |
 | | `save_contact`, `save_contact_attributes` | `contacts:write` |
-| **Personal NS** | `list_personal_nameservers` | `domains:read` |
+| **Personal NS** | `list_personal_nameservers`, `get_personal_nameserver` | `domains:read` |
 | | `update_personal_nameserver`, `delete_personal_nameserver` | `domains:write` |
 | **SellerHub** | `list_sellerhub_domains`, `get_sellerhub_domain`, `get_verification_records` | `sellerhub:read` |
 | | `create_sellerhub_domain`, `update_sellerhub_domain`, `delete_sellerhub_domain`, `create_checkout_link` | `sellerhub:write` |
@@ -309,6 +336,7 @@ Each DNS record type has a dedicated tool with type-safe parameters and validati
 | Tool | Description |
 |---|---|
 | `list_personal_nameservers` | List vanity/glue nameservers for a domain |
+| `get_personal_nameserver` | Get details of a personal nameserver by hostname |
 | `update_personal_nameserver` | Create or update a personal nameserver (glue record) |
 | `delete_personal_nameserver` | Delete a personal nameserver |
 
@@ -329,6 +357,87 @@ Each DNS record type has a dedicated tool with type-safe parameters and validati
 | Tool | Description |
 |---|---|
 | `check_dns_alignment` | Compare expected vs actual DNS records to detect missing or unexpected entries |
+
+## MCP Resources
+
+Resources provide passive context that clients can load without calling tools.
+
+| Resource | URI | Description |
+|---|---|---|
+| Domain List | `spaceship://domains` | All domains in the account |
+| Domain Details | `spaceship://domains/{domain}` | Detailed info for a specific domain |
+| DNS Records | `spaceship://domains/{domain}/dns` | DNS records for a specific domain |
+| Domain Contacts | `spaceship://domains/{domain}/contacts` | Contact assignments for a domain |
+| SellerHub Listings | `spaceship://sellerhub` | All SellerHub marketplace listings |
+
+Clients that support resource subscriptions will receive automatic notifications when data changes (polled every 30 seconds).
+
+## MCP Prompts
+
+Prompts provide guided workflows that clients can present as slash commands or quick actions.
+
+### Guided Workflows
+
+| Prompt | Description |
+|---|---|
+| `setup-domain` | Register and configure a new domain (availability check, registration, DNS, privacy) |
+| `audit-domain` | Health check for an existing domain (status, DNS, privacy, auto-renew, contacts) |
+| `setup-email` | Configure email DNS records for Google Workspace, Microsoft 365, Fastmail, or a custom provider |
+| `migrate-dns` | Step-by-step guide to migrate DNS records to Spaceship |
+| `list-for-sale` | List a domain on the SellerHub marketplace with pricing and checkout link |
+
+### Auto-Complete Prompts
+
+These prompts support argument auto-complete for domain names and common values:
+
+| Prompt | Description |
+|---|---|
+| `domain-lookup` | Look up domain details with domain name auto-complete |
+| `dns-records` | List DNS records with domain and record type auto-complete |
+| `set-privacy` | Set WHOIS privacy with domain and level auto-complete |
+| `update-nameservers` | Update nameservers with domain and provider auto-complete |
+
+## Toolset Filtering
+
+Reduce context window usage by enabling only the tool categories you need. Set the `SPACESHIP_TOOLSETS` environment variable to a comma-separated list:
+
+```bash
+SPACESHIP_TOOLSETS=dns,domains
+```
+
+| Toolset | Tools included |
+|---|---|
+| `domains` | Domain management and lifecycle tools |
+| `dns` | DNS records, record creators, and analysis |
+| `contacts` | Contact and privacy management |
+| `privacy` | Privacy management (same tools as `contacts`) |
+| `nameservers` | Personal nameserver management |
+| `sellerhub` | SellerHub marketplace tools |
+| `availability` | Domain availability checking |
+
+When not set, all toolsets are enabled. Invalid names are ignored; if all names are invalid, all toolsets are enabled as a fallback.
+
+## Dynamic Tool Loading
+
+For agents with constrained context windows, dynamic mode replaces all 48 tools with 3 lightweight meta-tools:
+
+```bash
+SPACESHIP_DYNAMIC_TOOLS=true
+```
+
+| Meta-Tool | Description |
+|---|---|
+| `search_tools` | Search available tools by keyword to discover what's available |
+| `describe_tools` | Get full parameter schemas for one or more tools before executing |
+| `execute_tool` | Execute any Spaceship tool by name with arguments |
+
+**Workflow:**
+
+1. `search_tools({ query: "dns" })` — discover relevant tools
+2. `describe_tools({ tools: ["create_a_record"] })` — get the full parameter schema
+3. `execute_tool({ tool: "create_a_record", arguments: { ... } })` — execute
+
+Resources, prompts, and completions remain available in dynamic mode.
 
 ## Example Usage
 
@@ -367,10 +476,20 @@ pnpm typecheck
 ```
 src/
   index.ts                    # Entry point (stdio transport)
-  server.ts                   # MCP server setup, registers all tool modules
-  spaceship-client.ts         # Spaceship API HTTP client
+  server.ts                   # MCP server setup, toolset filtering, feature registration
+  spaceship-client.ts         # Spaceship API HTTP client with caching and retry
+  cache.ts                    # TTL-based in-memory response cache
   schemas.ts                  # Shared Zod validation schemas
+  output-schemas.ts           # Zod output schemas for all 48 tools
   types.ts                    # TypeScript interfaces
+  tool-result.ts              # Error formatting with recovery suggestions
+  resources.ts                # MCP Resources (5 resources)
+  resource-subscriptions.ts   # Polling-based resource change notifications
+  prompts.ts                  # MCP Prompts (5 guided workflows)
+  completions.ts              # MCP Prompts with argument auto-complete (4 prompts)
+  dynamic-tools.ts            # Dynamic tool loading meta-tools
+  dns-utils.ts                # DNS record formatting utilities
+  update-checker.ts           # NPM update notifications
   tools/
     dns-records.ts            # List, save, delete DNS records
     dns-record-creators.ts    # 13 type-specific DNS record creation tools

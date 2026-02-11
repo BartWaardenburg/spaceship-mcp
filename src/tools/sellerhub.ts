@@ -3,11 +3,6 @@ import * as z from "zod/v4";
 import type { SpaceshipClient } from "../spaceship-client.js";
 import { normalizeDomain } from "../dns-utils.js";
 import { toTextResult, toErrorResult } from "../tool-result.js";
-import {
-  listSellerHubDomainsOutput, createSellerHubDomainOutput, getSellerHubDomainOutput,
-  updateSellerHubDomainOutput, deleteSellerHubDomainOutput,
-  createCheckoutLinkOutput, getVerificationRecordsOutput,
-} from "../output-schemas.js";
 
 const formatPrice = (price?: { amount: string; currency: string }): string =>
   price ? `${price.currency} ${price.amount}` : "not set";
@@ -28,7 +23,7 @@ export const registerSellerHubTools = (server: McpServer, client: SpaceshipClien
       description:
         "List domains listed for sale on SellerHub, Spaceship's domain marketplace for selling domains.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: listSellerHubDomainsOutput,
+
       inputSchema: z.object({
         fetchAll: z.boolean().default(true).describe("Fetch all pages (recommended)."),
         take: z.number().int().min(1).max(100).default(100).describe("Items per page when fetchAll=false."),
@@ -72,7 +67,7 @@ export const registerSellerHubTools = (server: McpServer, client: SpaceshipClien
         "You can optionally set pricing at creation time, or use update_sellerhub_domain later. " +
         "Always confirm with the user before listing — verify the domain name.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      outputSchema: createSellerHubDomainOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to list for sale."),
         displayName: z.string().optional().describe("Display name for the listing."),
@@ -112,7 +107,7 @@ export const registerSellerHubTools = (server: McpServer, client: SpaceshipClien
       title: "Get SellerHub Domain",
       description: "Get details of a SellerHub listing by domain name.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: getSellerHubDomainOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name of the SellerHub listing."),
       }),
@@ -148,7 +143,7 @@ export const registerSellerHubTools = (server: McpServer, client: SpaceshipClien
         "Update settings for a SellerHub domain listing. You can update description, pricing, and price toggles. " +
         "Prices use { amount: string, currency: string } format.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      outputSchema: updateSellerHubDomainOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name of the SellerHub listing."),
         displayName: z.string().optional().describe("Display name for the listing."),
@@ -188,7 +183,7 @@ export const registerSellerHubTools = (server: McpServer, client: SpaceshipClien
         "Remove a domain from the SellerHub marketplace. This deletes the listing permanently — any existing checkout links will stop working. " +
         "Always confirm with the user before calling this tool.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
-      outputSchema: deleteSellerHubDomainOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to remove from SellerHub."),
       }),
@@ -213,7 +208,7 @@ export const registerSellerHubTools = (server: McpServer, client: SpaceshipClien
         "WARNING: Anyone with this link can initiate a purchase of the domain. Only share with intended buyers. " +
         "Always confirm with the user before generating a checkout link.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      outputSchema: createCheckoutLinkOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to create a checkout link for."),
         type: z.enum(["buyNow"]).describe('Checkout link type. Currently "buyNow" is the supported type.'),
@@ -251,7 +246,7 @@ export const registerSellerHubTools = (server: McpServer, client: SpaceshipClien
         "Get the DNS verification records needed to verify ownership of SellerHub domain listings. " +
         "This returns account-level verification options (not per-domain). Each option contains DNS records to add.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: getVerificationRecordsOutput,
+
       inputSchema: z.object({}),
     },
     async () => {

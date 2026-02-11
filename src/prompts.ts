@@ -1,21 +1,47 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
+import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
+import type { SpaceshipClient } from "./spaceship-client.js";
 
-export const registerPrompts = (server: McpServer): void => {
-  server.registerPrompt(
+const DNS_RECORD_TYPES = [
+  "A", "AAAA", "CNAME", "MX", "TXT", "NS",
+  "SRV", "CAA", "ALIAS", "HTTPS", "SVCB", "PTR", "TLSA",
+];
+
+const PRIVACY_LEVELS = ["high", "public"];
+
+const NAMESERVER_PROVIDERS = ["basic", "custom"];
+
+const EMAIL_PROVIDERS = ["google", "microsoft", "fastmail", "custom"];
+
+export const domainCompleter = (client: SpaceshipClient) =>
+  async (value: string): Promise<string[]> => {
+    try {
+      const domains = await client.listAllDomains();
+      return domains
+        .map((d) => d.name)
+        .filter((name) => name.toLowerCase().startsWith(value.toLowerCase()));
+    } catch {
+      return [];
+    }
+  };
+
+export const staticCompleter = (options: string[]) =>
+  (value: string | undefined): string[] =>
+    options.filter((o) => o.toLowerCase().startsWith((value ?? "").toLowerCase()));
+
+export const registerPrompts = (server: McpServer, client: SpaceshipClient): void => {
+  const completeDomain = domainCompleter(client);
+
+  server.prompt(
     "setup-domain",
-    {
-      title: "Setup Domain",
-      description: "Guided workflow for registering and configuring a new domain",
-      argsSchema: {
-        domain: z.string().describe("Domain name to register (e.g. example.com)"),
-      },
-    },
-    ({ domain }) => ({
+    "Guided workflow for registering and configuring a new domain",
+    { domain: completable(z.string().describe("Domain name to register (e.g. example.com)"), completeDomain) },
+    async ({ domain }) => ({
       messages: [{
-        role: "user",
+        role: "user" as const,
         content: {
-          type: "text",
+          type: "text" as const,
           text: [
             `Help me register and configure the domain "${domain}". Follow these steps:`,
             "",
@@ -33,20 +59,15 @@ export const registerPrompts = (server: McpServer): void => {
     }),
   );
 
-  server.registerPrompt(
+  server.prompt(
     "audit-domain",
-    {
-      title: "Audit Domain",
-      description: "Comprehensive domain health check — reviews status, DNS, privacy, and auto-renew",
-      argsSchema: {
-        domain: z.string().describe("Domain name to audit (e.g. example.com)"),
-      },
-    },
-    ({ domain }) => ({
+    "Comprehensive domain health check — reviews status, DNS, privacy, and auto-renew",
+    { domain: completable(z.string().describe("Domain name to audit (e.g. example.com)"), completeDomain) },
+    async ({ domain }) => ({
       messages: [{
-        role: "user",
+        role: "user" as const,
         content: {
-          type: "text",
+          type: "text" as const,
           text: [
             `Perform a comprehensive health check on "${domain}". Check the following:`,
             "",
@@ -64,21 +85,18 @@ export const registerPrompts = (server: McpServer): void => {
     }),
   );
 
-  server.registerPrompt(
+  server.prompt(
     "setup-email",
+    "Configure DNS records for email providers (Google Workspace, Microsoft 365, Fastmail, custom)",
     {
-      title: "Setup Email DNS",
-      description: "Configure DNS records for email providers (Google Workspace, Microsoft 365, Fastmail, custom)",
-      argsSchema: {
-        domain: z.string().describe("Domain name to configure email for"),
-        provider: z.string().describe("Email provider: google, microsoft, fastmail, or custom"),
-      },
+      domain: completable(z.string().describe("Domain name to configure email for"), completeDomain),
+      provider: completable(z.string().describe("Email provider: google, microsoft, fastmail, or custom"), staticCompleter(EMAIL_PROVIDERS)),
     },
-    ({ domain, provider }) => ({
+    async ({ domain, provider }) => ({
       messages: [{
-        role: "user",
+        role: "user" as const,
         content: {
-          type: "text",
+          type: "text" as const,
           text: [
             `Set up email DNS records for "${domain}" using ${provider} as the email provider.`,
             "",
@@ -100,20 +118,15 @@ export const registerPrompts = (server: McpServer): void => {
     }),
   );
 
-  server.registerPrompt(
+  server.prompt(
     "migrate-dns",
-    {
-      title: "Migrate DNS",
-      description: "Step-by-step DNS migration guide — export, review, recreate, and verify",
-      argsSchema: {
-        domain: z.string().describe("Domain name to migrate DNS for"),
-      },
-    },
-    ({ domain }) => ({
+    "Step-by-step DNS migration guide — export, review, recreate, and verify",
+    { domain: completable(z.string().describe("Domain name to migrate DNS for"), completeDomain) },
+    async ({ domain }) => ({
       messages: [{
-        role: "user",
+        role: "user" as const,
         content: {
-          type: "text",
+          type: "text" as const,
           text: [
             `Help me migrate DNS records for "${domain}". Follow this process:`,
             "",
@@ -129,20 +142,15 @@ export const registerPrompts = (server: McpServer): void => {
     }),
   );
 
-  server.registerPrompt(
+  server.prompt(
     "list-for-sale",
-    {
-      title: "List Domain for Sale",
-      description: "Guided SellerHub listing workflow — create listing, set pricing, generate checkout link",
-      argsSchema: {
-        domain: z.string().describe("Domain name to list for sale"),
-      },
-    },
-    ({ domain }) => ({
+    "Guided SellerHub listing workflow — create listing, set pricing, generate checkout link",
+    { domain: completable(z.string().describe("Domain name to list for sale"), completeDomain) },
+    async ({ domain }) => ({
       messages: [{
-        role: "user",
+        role: "user" as const,
         content: {
-          type: "text",
+          type: "text" as const,
           text: [
             `Help me list "${domain}" for sale on SellerHub. Follow these steps:`,
             "",
@@ -155,6 +163,64 @@ export const registerPrompts = (server: McpServer): void => {
             "",
             "Confirm each step with me before proceeding.",
           ].join("\n"),
+        },
+      }],
+    }),
+  );
+
+  server.prompt(
+    "dns-records",
+    "List DNS records for a domain, optionally filtered by type",
+    {
+      domain: completable(z.string().describe("Domain name"), completeDomain),
+      type: completable(z.string().optional().describe("DNS record type filter"), staticCompleter(DNS_RECORD_TYPES)),
+    },
+    async ({ domain, type }) => ({
+      messages: [{
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: type
+            ? `List all ${type} DNS records for "${domain}" using the list_dns_records tool.`
+            : `List all DNS records for "${domain}" using the list_dns_records tool and organize them by type.`,
+        },
+      }],
+    }),
+  );
+
+  server.prompt(
+    "set-privacy",
+    "Set privacy level for a domain",
+    {
+      domain: completable(z.string().describe("Domain name"), completeDomain),
+      level: completable(z.string().describe("Privacy level: high or public"), staticCompleter(PRIVACY_LEVELS)),
+    },
+    async ({ domain, level }) => ({
+      messages: [{
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: `Set the privacy level for "${domain}" to "${level}" using the set_privacy_level tool with userConsent set to true.`,
+        },
+      }],
+    }),
+  );
+
+  server.prompt(
+    "update-nameservers",
+    "Update nameservers for a domain",
+    {
+      domain: completable(z.string().describe("Domain name"), completeDomain),
+      provider: completable(z.string().describe("Nameserver provider: basic or custom"), staticCompleter(NAMESERVER_PROVIDERS)),
+    },
+    async ({ domain, provider }) => ({
+      messages: [{
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: provider === "basic"
+            ? `Reset the nameservers for "${domain}" back to the default Spaceship nameservers using the update_nameservers tool with provider "basic".`
+            : `Update the nameservers for "${domain}" to custom nameservers. First ask the user which nameservers to use, then call the update_nameservers tool.`,
         },
       }],
     }),

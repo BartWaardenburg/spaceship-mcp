@@ -3,10 +3,6 @@ import * as z from "zod/v4";
 import type { SpaceshipClient } from "../spaceship-client.js";
 import { normalizeDomain } from "../dns-utils.js";
 import { toTextResult, toErrorResult } from "../tool-result.js";
-import {
-  listPersonalNameserversOutput, getPersonalNameserverOutput,
-  updatePersonalNameserverOutput, deletePersonalNameserverOutput,
-} from "../output-schemas.js";
 
 export const registerPersonalNameserverTools = (server: McpServer, client: SpaceshipClient): void => {
   server.registerTool(
@@ -16,7 +12,7 @@ export const registerPersonalNameserverTools = (server: McpServer, client: Space
       description:
         "List personal (vanity) nameservers configured for a domain (e.g. ns1.yourdomain.com, ns2.yourdomain.com).",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: listPersonalNameserversOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to list personal nameservers for."),
       }),
@@ -52,7 +48,7 @@ export const registerPersonalNameserverTools = (server: McpServer, client: Space
       description:
         "Get details of a single personal (vanity) nameserver by hostname, including its IP addresses.",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      outputSchema: getPersonalNameserverOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The parent domain name."),
         host: z.string().min(1).describe('The nameserver hostname (e.g. "ns1.yourdomain.com").'),
@@ -79,7 +75,7 @@ export const registerPersonalNameserverTools = (server: McpServer, client: Space
       description:
         "Create or update a personal nameserver host with its IP addresses. These are glue records that map a nameserver hostname (e.g. ns1.yourdomain.com) to IP addresses at the registry level.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      outputSchema: updatePersonalNameserverOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The parent domain name."),
         host: z.string().min(1).describe("The nameserver hostname (e.g. \"ns1.yourdomain.com\")."),
@@ -109,7 +105,7 @@ export const registerPersonalNameserverTools = (server: McpServer, client: Space
         "WARNING: If this nameserver is actively used by any domain, those domains will lose DNS resolution and experience downtime. " +
         "Always confirm with the user before calling this tool.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
-      outputSchema: deletePersonalNameserverOutput,
+
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The parent domain name."),
         host: z.string().min(1).describe("The nameserver hostname to delete (e.g. \"ns1.yourdomain.com\")."),
