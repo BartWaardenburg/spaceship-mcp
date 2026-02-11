@@ -30,7 +30,7 @@ type ServerWithTools = {
 };
 
 const collectTools = (server: McpServer, client: SpaceshipClient): ToolEntry[] => {
-  // Register all tools on a temporary server
+  // Register all tools, then collect their metadata
   registerDnsRecordTools(server, client);
   registerDnsRecordCreatorTools(server, client);
   registerDomainManagementTools(server, client);
@@ -124,10 +124,7 @@ export const registerDynamicTools = (server: McpServer, client: SpaceshipClient)
           continue;
         }
 
-        const schema = tool.inputSchema;
-        const schemaJson = schema
-          ? JSON.stringify(z.toJSONSchema(schema as z.ZodType), null, 2)
-          : "No parameters required";
+        const schemaJson = JSON.stringify(z.toJSONSchema(tool.inputSchema as z.ZodType), null, 2);
 
         results.push(
           `**${tool.name}**${tool.title ? ` (${tool.title})` : ""}\n` +

@@ -4,6 +4,11 @@ import type { SpaceshipClient } from "../spaceship-client.js";
 import { normalizeDomain } from "../dns-utils.js";
 import { ContactSchema } from "../schemas.js";
 import { toTextResult, toErrorResult } from "../tool-result.js";
+import {
+  saveContactOutput, getContactOutput, saveContactAttributesOutput,
+  getContactAttributesOutput, updateDomainContactsOutput,
+  setPrivacyLevelOutput, setEmailProtectionOutput,
+} from "../output-schemas.js";
 
 export const registerContactsPrivacyTools = (server: McpServer, client: SpaceshipClient): void => {
   server.registerTool(
@@ -13,6 +18,7 @@ export const registerContactsPrivacyTools = (server: McpServer, client: Spaceshi
       description:
         "Create or update a reusable contact profile. Saved contacts can be referenced when registering domains or updating domain contacts. If a contactId is provided, the existing contact is updated; otherwise a new contact is created.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      outputSchema: saveContactOutput,
       inputSchema: ContactSchema,
     },
     async (input) => {
@@ -42,6 +48,7 @@ export const registerContactsPrivacyTools = (server: McpServer, client: Spaceshi
       title: "Get Contact",
       description: "Retrieve a saved contact profile by its unique identifier.",
       annotations: { readOnlyHint: true, openWorldHint: true },
+      outputSchema: getContactOutput,
       inputSchema: z.object({
         contactId: z.string().min(1).describe("The unique identifier of the contact to retrieve"),
       }),
@@ -79,6 +86,7 @@ export const registerContactsPrivacyTools = (server: McpServer, client: Spaceshi
         "Different TLDs require different fields. Example for .us: { type: \"us\", appPurpose: \"P1\", nexusCategory: \"C11\" }. " +
         "Returns the contactId associated with the saved attributes.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      outputSchema: saveContactAttributesOutput,
       inputSchema: z.object({
         attributes: z.record(z.string(), z.string()).describe(
           "TLD-specific attribute key-value pairs. Example for .us: { type: \"us\", appPurpose: \"P1\", nexusCategory: \"C11\" }",
@@ -110,6 +118,7 @@ export const registerContactsPrivacyTools = (server: McpServer, client: Spaceshi
         "Retrieve stored contact attributes for a specific contact (TLD-specific extra fields like tax IDs and company registration numbers). " +
         "Use get_domain first to find the contact ID, then use this tool to retrieve its attributes.",
       annotations: { readOnlyHint: true, openWorldHint: true },
+      outputSchema: getContactAttributesOutput,
       inputSchema: z.object({
         contactId: z.string().min(1).describe("The unique identifier of the contact to get attributes for. Use get_domain to find the contact ID."),
       }),
@@ -147,6 +156,7 @@ export const registerContactsPrivacyTools = (server: McpServer, client: Spaceshi
         "Only the contact roles you provide will be updated; omitted roles remain unchanged. " +
         "Always confirm with the user before calling this tool — show which contact roles will be changed.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+      outputSchema: updateDomainContactsOutput,
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name to update contacts for"),
         registrant: z.string().min(1).optional().describe("Registrant contact ID (domain owner). Use save_contact to get an ID. Changing this may trigger an ICANN transfer lock."),
@@ -198,6 +208,7 @@ export const registerContactsPrivacyTools = (server: McpServer, client: Spaceshi
         'WARNING: Setting privacy to "public" exposes personal contact information (name, address, email, phone) in public WHOIS databases, which cannot be un-cached once indexed by third parties. ' +
         "Always confirm with the user before setting privacy to public.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      outputSchema: setPrivacyLevelOutput,
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
         level: z
@@ -231,6 +242,7 @@ export const registerContactsPrivacyTools = (server: McpServer, client: Spaceshi
         "WARNING: Disabling email protection exposes the registrant's email address in WHOIS, increasing spam and phishing risk. " +
         "Always confirm with the user before disabling email protection.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      outputSchema: setEmailProtectionOutput,
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
         contactForm: z

@@ -3,7 +3,7 @@
 import { createRequire } from "node:module";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SpaceshipClient } from "./spaceship-client.js";
-import { createServer } from "./server.js";
+import { createServer, parseToolsets } from "./server.js";
 import { checkForUpdate } from "./update-checker.js";
 
 const require = createRequire(import.meta.url);
@@ -17,9 +17,16 @@ if (!apiKey || !apiSecret) {
   process.exit(1);
 }
 
+const cacheTtl = process.env.SPACESHIP_CACHE_TTL !== undefined
+  ? parseInt(process.env.SPACESHIP_CACHE_TTL, 10) * 1000
+  : undefined;
+const maxRetries = process.env.SPACESHIP_MAX_RETRIES !== undefined
+  ? parseInt(process.env.SPACESHIP_MAX_RETRIES, 10)
+  : 3;
 const dynamicTools = process.env.SPACESHIP_DYNAMIC_TOOLS === "true";
-const client = new SpaceshipClient(apiKey, apiSecret);
-const server = createServer(client, { dynamicTools });
+const client = new SpaceshipClient(apiKey, apiSecret, undefined, cacheTtl, { maxRetries });
+const toolsets = parseToolsets(process.env.SPACESHIP_TOOLSETS);
+const server = createServer(client, toolsets, dynamicTools);
 
 const main = async (): Promise<void> => {
   const transport = new StdioServerTransport();

@@ -1,3 +1,4 @@
+import * as z from "zod/v4";
 import { describe, it, expect, vi } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SpaceshipClient } from "./spaceship-client.js";
@@ -116,5 +117,49 @@ describe("registerDynamicTools", () => {
     ) as { content: Array<{ text: string }>; isError: boolean };
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("not found");
+  });
+
+  it("execute_tool catches handler errors", async () => {
+    const server = new McpServer({ name: "test", version: "1.0.0" });
+    // Register a tool that throws before registerDynamicTools collects it
+    server.registerTool(
+      "_test_throw",
+      { description: "throws on execute", inputSchema: z.object({}) },
+      async () => { throw new Error("kaboom"); },
+    );
+    registerDynamicTools(server, mockClient);
+    const tools = (server as unknown as ServerWithTools)._registeredTools;
+    const result = await tools.execute_tool.handler(
+      { tool: "_test_throw", arguments: {} },
+      {},
+    ) as { content: Array<{ text: string }>; isError: boolean };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("Error executing");
+    expect(result.content[0].text).toContain("kaboom");
+  });
+
+  it("execute_tool catches non-Error throws", async () => {
+    const server = new McpServer({ name: "test", version: "1.0.0" });
+    server.registerTool(
+      "_test_throw_string",
+      { description: "throws string", inputSchema: z.object({}) },
+      async () => { throw "string error"; },
+    );
+    registerDynamicTools(server, mockClient);
+    const tools = (server as unknown as ServerWithTools)._registeredTools;
+    const result = await tools.execute_tool.handler(
+      { tool: "_test_throw_string", arguments: {} },
+      {},
+    ) as { content: Array<{ text: string }>; isError: boolean };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("string error");
+  });
+
+  it("search_tools matches by tool title", async () => {
+    const tools = getTools();
+    const result = await tools.search_tools.handler({ query: "List Domains" }, {}) as {
+      content: Array<{ text: string }>;
+    };
+    expect(result.content[0].text).toContain("list_domains");
   });
 });
