@@ -1,5 +1,4 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   SubscribeRequestSchema,
   UnsubscribeRequestSchema,
@@ -13,7 +12,7 @@ interface SubscriptionState {
   timer: ReturnType<typeof setInterval>;
 }
 
-const hashData = (data: unknown): string => {
+export const hashData = (data: unknown): string => {
   const json = JSON.stringify(data, Object.keys(data as Record<string, unknown>).sort());
   let hash = 0;
   for (let i = 0; i < json.length; i++) {
@@ -27,57 +26,6 @@ export const registerResourceSubscriptions = (
   client: SpaceshipClient,
 ): (() => void) => {
   const subscriptions = new Map<string, SubscriptionState>();
-
-  // Register domain list resource
-  server.resource(
-    "domains-list",
-    "spaceship://domains",
-    { description: "List of all domains in the account" },
-    async (uri) => {
-      const domains = await client.listAllDomains();
-      return {
-        contents: [{
-          uri: uri.href,
-          mimeType: "application/json",
-          text: JSON.stringify(domains, null, 2),
-        }],
-      };
-    },
-  );
-
-  // Register domain detail resource template
-  server.resource(
-    "domain-detail",
-    new ResourceTemplate("spaceship://domains/{domain}", { list: undefined }),
-    { description: "Domain details including status, expiry, and nameservers" },
-    async (uri, params) => {
-      const domain = await client.getDomain(params.domain as string);
-      return {
-        contents: [{
-          uri: uri.href,
-          mimeType: "application/json",
-          text: JSON.stringify(domain, null, 2),
-        }],
-      };
-    },
-  );
-
-  // Register DNS records resource template
-  server.resource(
-    "domain-dns",
-    new ResourceTemplate("spaceship://domains/{domain}/dns", { list: undefined }),
-    { description: "DNS records for a domain" },
-    async (uri, params) => {
-      const records = await client.listAllDnsRecords(params.domain as string);
-      return {
-        contents: [{
-          uri: uri.href,
-          mimeType: "application/json",
-          text: JSON.stringify(records, null, 2),
-        }],
-      };
-    },
-  );
 
   const startPolling = (resourceUri: string, fetcher: () => Promise<unknown>): void => {
     if (subscriptions.has(resourceUri)) return;
@@ -96,14 +44,12 @@ export const registerResourceSubscriptions = (
       }
     };
 
-    // Set initial hash
     void fetcher().then((data) => {
       subscriptions.set(resourceUri, {
         lastHash: hashData(data),
         timer: setInterval(() => void poll(), POLL_INTERVAL_MS),
       });
     }).catch(() => {
-      // If initial fetch fails, still start polling
       subscriptions.set(resourceUri, {
         lastHash: "",
         timer: setInterval(() => void poll(), POLL_INTERVAL_MS),
@@ -119,7 +65,6 @@ export const registerResourceSubscriptions = (
     }
   };
 
-  // Handle subscribe/unsubscribe via the low-level server
   server.server.setRequestHandler(
     SubscribeRequestSchema,
     async (request) => {
@@ -147,7 +92,6 @@ export const registerResourceSubscriptions = (
     },
   );
 
-  // Return cleanup function
   return () => {
     for (const [uri] of subscriptions) {
       stopPolling(uri);
