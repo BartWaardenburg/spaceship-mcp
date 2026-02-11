@@ -12,6 +12,7 @@ import { registerAnalysisTools } from "./tools/analysis.js";
 import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
 import { registerCompletablePrompts } from "./completions.js";
+import { registerResourceSubscriptions } from "./resource-subscriptions.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -68,6 +69,7 @@ export const createServer = (client: SpaceshipClient, toolsets?: Set<Toolset>): 
   }
 
   registerResources(server, client);
+  registerResourceSubscriptions(server, client);
   registerPrompts(server);
   registerCompletablePrompts(server, client);
 
