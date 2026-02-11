@@ -874,7 +874,7 @@ describe("SpaceshipClient", () => {
     });
 
     it("throws after exhausting all retries", async () => {
-      const singleRetry = new SpaceshipClient("k", "s", "https://api.test.com", { maxRetries: 1 });
+      const singleRetry = new SpaceshipClient("k", "s", "https://api.test.com", undefined, { maxRetries: 1 });
 
       vi.useFakeTimers();
 
@@ -913,7 +913,7 @@ describe("SpaceshipClient", () => {
     });
 
     it("retries can be disabled with maxRetries=0", async () => {
-      const noRetry = new SpaceshipClient("k", "s", "https://api.test.com", { maxRetries: 0 });
+      const noRetry = new SpaceshipClient("k", "s", "https://api.test.com", undefined, { maxRetries: 0 });
 
       mockFetch.mockResolvedValueOnce(
         new Response(JSON.stringify({ code: "RATE_LIMITED" }), {
@@ -924,6 +924,176 @@ describe("SpaceshipClient", () => {
 
       await expect(noRetry.getDomain("example.com")).rejects.toThrow(SpaceshipApiError);
       expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("caching", () => {
+    it("returns cached result on second call to listAllDnsRecords", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ items: [{ type: "A", name: "@", address: "1.2.3.4" }], total: 1 }),
+      );
+
+      const first = await client.listAllDnsRecords("example.com");
+      const second = await client.listAllDnsRecords("example.com");
+
+      expect(first).toEqual(second);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns cached result on second call to getDomain", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ name: "example.com", status: "active" }));
+
+      const first = await client.getDomain("example.com");
+      const second = await client.getDomain("example.com");
+
+      expect(first).toEqual(second);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns cached result on second call to listAllDomains", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ items: [{ name: "example.com" }], total: 1 }),
+      );
+
+      const first = await client.listAllDomains();
+      const second = await client.listAllDomains();
+
+      expect(first).toEqual(second);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns cached result on second call to getContact", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ contactId: "c-1", firstName: "John" }),
+      );
+
+      const first = await client.getContact("c-1");
+      const second = await client.getContact("c-1");
+
+      expect(first).toEqual(second);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns cached result on second call to listAllSellerHubDomains", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ items: [{ name: "sale.com" }], total: 1 }),
+      );
+
+      const first = await client.listAllSellerHubDomains();
+      const second = await client.listAllSellerHubDomains();
+
+      expect(first).toEqual(second);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("invalidates DNS cache after saveDnsRecords", async () => {
+      // First: cache listAllDnsRecords
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ items: [{ type: "A", name: "@", address: "1.2.3.4" }], total: 1 }),
+      );
+      await client.listAllDnsRecords("example.com");
+
+      // saveDnsRecords: listAll (cached), DELETE conflict, PUT
+      mockFetch
+        .mockResolvedValueOnce(emptyResponse()) // DELETE conflicting A @
+        .mockResolvedValueOnce(emptyResponse()); // PUT new records
+      await client.saveDnsRecords("example.com", [
+        { type: "A", name: "@", address: "5.6.7.8", ttl: 300 },
+      ]);
+
+      // Next listAll should fetch fresh
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ items: [{ type: "A", name: "@", address: "5.6.7.8" }], total: 1 }),
+      );
+      const result = await client.listAllDnsRecords("example.com");
+
+      expect(result[0].address).toBe("5.6.7.8");
+    });
+
+    it("invalidates DNS cache after deleteDnsRecords", async () => {
+      // Cache
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ items: [{ type: "A", name: "@", address: "1.2.3.4", ttl: 300 }], total: 1 }),
+      );
+      await client.listAllDnsRecords("example.com");
+
+      // Delete: listAll (cached), DELETE
+      mockFetch.mockResolvedValueOnce(emptyResponse());
+      await client.deleteDnsRecords("example.com", [{ name: "@", type: "A" }]);
+
+      // Fresh fetch
+      mockFetch.mockResolvedValueOnce(jsonResponse({ items: [], total: 0 }));
+      const result = await client.listAllDnsRecords("example.com");
+
+      expect(result).toHaveLength(0);
+    });
+
+    it("invalidates domain cache after setAutoRenew", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ name: "example.com", autoRenew: false }));
+      await client.getDomain("example.com");
+
+      mockFetch.mockResolvedValueOnce(emptyResponse());
+      await client.setAutoRenew("example.com", true);
+
+      mockFetch.mockResolvedValueOnce(jsonResponse({ name: "example.com", autoRenew: true }));
+      const result = await client.getDomain("example.com");
+
+      expect(result.autoRenew).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("invalidates domain cache after setPrivacyLevel", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ name: "example.com" }));
+      await client.getDomain("example.com");
+
+      mockFetch.mockResolvedValueOnce(emptyResponse());
+      await client.setPrivacyLevel("example.com", "high", true);
+
+      mockFetch.mockResolvedValueOnce(jsonResponse({ name: "example.com", privacy: "high" }));
+      const result = await client.getDomain("example.com");
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(result.privacy).toBe("high");
+    });
+
+    it("invalidates contact cache after saveContact", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ contactId: "c-1", firstName: "John" }),
+      );
+      await client.getContact("c-1");
+
+      mockFetch.mockResolvedValueOnce(jsonResponse({ contactId: "c-1" }));
+      await client.saveContact({
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane@example.com",
+        address1: "123 Main St",
+        city: "NYC",
+        country: "US",
+        postalCode: "10001",
+        phone: "+1.1234567890",
+      });
+
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ contactId: "c-1", firstName: "Jane" }),
+      );
+      const result = await client.getContact("c-1");
+
+      expect(result.firstName).toBe("Jane");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("disables caching when cacheTtlMs is 0", async () => {
+      const noCache = new SpaceshipClient("test-key", "test-secret", "https://api.test.com", 0);
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ items: [{ name: "example.com" }], total: 1 }))
+        .mockResolvedValueOnce(jsonResponse({ items: [{ name: "example.com" }], total: 1 }));
+
+      await noCache.listAllDomains();
+      await noCache.listAllDomains();
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 

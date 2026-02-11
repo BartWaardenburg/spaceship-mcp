@@ -4,6 +4,7 @@ import type { SpaceshipClient } from "../spaceship-client.js";
 import type { DnsRecord } from "../types.js";
 import { normalizeDomain } from "../dns-utils.js";
 import { toTextResult, toErrorResult } from "../tool-result.js";
+import { createRecordOutput } from "../output-schemas.js";
 
 const handleCreateRecord = async (
   client: SpaceshipClient,
@@ -36,6 +37,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, address, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "A", address, ttl },
@@ -57,6 +59,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, address, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "AAAA", address, ttl },
@@ -78,6 +81,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, cname, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "CNAME", cname, ttl },
@@ -100,6 +104,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, priority, exchange, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "MX", preference: priority, exchange, ttl },
@@ -124,6 +129,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, priority, weight, port, target, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "SRV", priority, weight, port, target, ttl },
@@ -145,6 +151,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, value, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "TXT", value, ttl },
@@ -166,6 +173,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, aliasName, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "ALIAS", aliasName, ttl },
@@ -189,6 +197,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, flag, tag, value, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "CAA", flag, tag, value, ttl },
@@ -214,6 +223,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, svcPriority, targetName, svcParams, port, scheme, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "HTTPS", svcPriority, targetName, svcParams, port, scheme, ttl },
@@ -235,6 +245,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, nameserver, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "NS", nameserver, ttl },
@@ -256,6 +267,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, pointer, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "PTR", pointer, ttl },
@@ -281,6 +293,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, svcPriority, targetName, svcParams, port, scheme, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "SVCB", svcPriority, targetName, svcParams, port, scheme, ttl },
@@ -308,6 +321,7 @@ export const registerDnsRecordCreatorTools = (server: McpServer, client: Spacesh
         ttl: z.number().int().min(60).max(86400).default(3600).describe("TTL in seconds"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      outputSchema: createRecordOutput,
     },
     async ({ domain, name, port, protocol, usage, selector, matching, associationData, scheme, ttl }) =>
       handleCreateRecord(client, domain, { name, type: "TLSA", port, protocol, usage, selector, matching, associationData, scheme, ttl },
