@@ -145,4 +145,43 @@ describe("toErrorResult", () => {
     expect(result.content[0].text).toContain("Recovery:");
     expect(result.content[0].text).toContain("field errors");
   });
+
+  it("includes nameserver not found recovery suggestion for 404", () => {
+    const error = new SpaceshipApiError("Nameserver not found", 404);
+    const result = toErrorResult(error);
+
+    expect(result.content[0].text).toContain("Recovery:");
+    expect(result.content[0].text).toContain("list_personal_nameservers");
+  });
+
+  it("includes operation not found recovery suggestion for 404", () => {
+    const error = new SpaceshipApiError("Operation not found", 404);
+    const result = toErrorResult(error);
+
+    expect(result.content[0].text).toContain("Recovery:");
+    expect(result.content[0].text).toContain("operation ID may have expired");
+  });
+
+  it("includes duplicate resource recovery suggestion for 400", () => {
+    const error = new SpaceshipApiError("Bad request", 400, "Resource already exists");
+    const result = toErrorResult(error);
+
+    expect(result.content[0].text).toContain("Recovery:");
+    expect(result.content[0].text).toContain("update or get tool");
+  });
+
+  it("includes consent recovery suggestion for 400", () => {
+    const error = new SpaceshipApiError("Bad request", 400, "User consent is required");
+    const result = toErrorResult(error);
+
+    expect(result.content[0].text).toContain("Recovery:");
+    expect(result.content[0].text).toContain("userConsent");
+  });
+
+  it("returns no recovery suggestion for unrecognized status codes", () => {
+    const error = new SpaceshipApiError("I'm a teapot", 418);
+    const result = toErrorResult(error);
+
+    expect(result.content[0].text).not.toContain("Recovery:");
+  });
 });
