@@ -1,93 +1,90 @@
-# Spaceship MCP Server
+# spaceship-mcp
 
-MCP server for the Spaceship registrar API. Manage domains and DNS records through any MCP-compatible client.
+An MCP (Model Context Protocol) server for managing domains and DNS records via the [Spaceship](https://spaceship.com) API. Provides tools for DNS record management, domain administration, and DNS analysis through any MCP-compatible client.
 
-## Warning
-
-This MCP server gives AI agents direct control over your DNS records and domain settings. Incorrect changes can cause service disruption or domain takeover. Always review changes before confirming.
-
-## Features
-
-### DNS Record Management
-- **list_dns_records** — List all DNS records for a domain
-- **create_dns_record** — Create records (generic, all types)
-- **update_dns_records** — Update records (force overwrite)
-- **delete_dns_records** — Delete records by name and type
-
-### Specialized Record Creation
-Type-specific tools with explicit parameters:
-- **create_a_record** — A record (IPv4)
-- **create_aaaa_record** — AAAA record (IPv6)
-- **create_cname_record** — CNAME record (alias)
-- **create_mx_record** — MX record (mail exchange)
-- **create_srv_record** — SRV record (service locator)
-- **create_txt_record** — TXT record (SPF, DKIM, DMARC, etc.)
-
-### Domain Management
-- **list_domains** — List all domains in the account
-- **get_domain** — Get domain details (registration, expiry, nameservers)
-- **check_domain_availability** — Check if domains are available for registration
-- **update_nameservers** — Update nameservers for a domain
-- **set_auto_renew** — Enable/disable auto-renewal
-- **set_transfer_lock** — Lock/unlock domain transfers
-- **get_auth_code** — Retrieve EPP/auth code for transfers
-
-### Analysis Tools
-- **check_dns_alignment** — Compare expected vs actual DNS records
-- **analyze_fly_cutover** — Plan Vercel to Fly migration (read-only)
-
-## Requirements
-
-- Node.js >= 20
-- Spaceship API credentials with `domains:read`, `dnsrecords:read`, and `dnsrecords:write` permissions
-
-## Install
-
-```bash
-pnpm install
-pnpm build
-```
-
-## Configuration
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `SPACESHIP_API_KEY` | Spaceship API key | Yes |
-| `SPACESHIP_API_SECRET` | Spaceship API secret | Yes |
-
-Get credentials from the [Spaceship API Manager](https://www.spaceship.com/application/api-manager/).
-
-## MCP Client Config
+## Installation
 
 ### Claude Code
+
+```bash
+claude mcp add spaceship-mcp -e SPACESHIP_API_KEY=your-key -e SPACESHIP_API_SECRET=your-secret -- npx spaceship-mcp
+```
+
+### Manual Configuration
+
+Add the following to your MCP client configuration:
 
 ```json
 {
   "mcpServers": {
-    "spaceship": {
-      "command": "node",
-      "args": ["/path/to/spaceship-mcp/dist/index.js"],
+    "spaceship-mcp": {
+      "command": "npx",
+      "args": ["spaceship-mcp"],
       "env": {
-        "SPACESHIP_API_KEY": "your_api_key",
-        "SPACESHIP_API_SECRET": "your_api_secret"
+        "SPACESHIP_API_KEY": "your-key",
+        "SPACESHIP_API_SECRET": "your-secret"
       }
     }
   }
 }
 ```
 
-### Development
+## Configuration
 
-```bash
-SPACESHIP_API_KEY=... SPACESHIP_API_SECRET=... pnpm dev
-```
+Two environment variables are required:
 
-## API Permissions
+| Variable | Description |
+|---|---|
+| `SPACESHIP_API_KEY` | Your Spaceship API key |
+| `SPACESHIP_API_SECRET` | Your Spaceship API secret |
 
-| Permission | Tools |
-|------------|-------|
-| `domains:read` | list_domains, get_domain, check_domain_availability |
-| `domains:write` | update_nameservers, set_auto_renew, set_transfer_lock |
-| `domains:transfer` | get_auth_code |
-| `dnsrecords:read` | list_dns_records, check_dns_alignment, analyze_fly_cutover |
-| `dnsrecords:write` | create/update/delete DNS record tools |
+You can obtain API credentials from your [Spaceship](https://spaceship.com) account.
+
+## Available Tools
+
+### DNS Records
+
+| Tool | Description |
+|---|---|
+| `list_dns_records` | List all DNS records for a domain |
+| `create_dns_record` | Create DNS records (supports all types) |
+| `update_dns_records` | Update existing DNS records |
+| `delete_dns_records` | Delete DNS records by name and type |
+
+### Type-Specific Record Creation
+
+| Tool | Description |
+|---|---|
+| `create_a_record` | Create an A record (IPv4) |
+| `create_aaaa_record` | Create an AAAA record (IPv6) |
+| `create_cname_record` | Create a CNAME record |
+| `create_mx_record` | Create an MX record |
+| `create_srv_record` | Create an SRV record |
+| `create_txt_record` | Create a TXT record |
+
+### Domain Management
+
+| Tool | Description |
+|---|---|
+| `list_domains` | List all domains in the account |
+| `get_domain` | Get domain details |
+| `check_domain_availability` | Check domain availability |
+| `update_nameservers` | Update nameservers |
+| `set_auto_renew` | Toggle auto-renewal |
+| `set_transfer_lock` | Toggle transfer lock |
+| `get_auth_code` | Get transfer auth/EPP code |
+
+### Analysis
+
+| Tool | Description |
+|---|---|
+| `check_dns_alignment` | Compare expected vs actual DNS records |
+| `analyze_fly_cutover` | Analyze DNS for Vercel-to-Fly migration |
+
+## Requirements
+
+- Node.js >= 20
+
+## License
+
+MIT
