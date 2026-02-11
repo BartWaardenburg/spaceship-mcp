@@ -95,4 +95,15 @@ describe("createServer", () => {
       expect(tool.annotations, `Tool "${name}" should have annotations`).toBeDefined();
     }
   });
+
+  it("registers 4 completable prompts", () => {
+    type ServerWithPrompts = { _registeredPrompts: Record<string, unknown> };
+    const server = createServer(mockClient) as unknown as ServerWithPrompts;
+    const prompts = Object.keys(server._registeredPrompts);
+    expect(prompts).toHaveLength(4);
+    expect(prompts).toContain("domain-lookup");
+    expect(prompts).toContain("dns-records");
+    expect(prompts).toContain("set-privacy");
+    expect(prompts).toContain("update-nameservers");
+  });
 });
