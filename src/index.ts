@@ -17,7 +17,10 @@ if (!apiKey || !apiSecret) {
   process.exit(1);
 }
 
-const client = new SpaceshipClient(apiKey, apiSecret);
+const cacheTtl = process.env.SPACESHIP_CACHE_TTL !== undefined
+  ? parseInt(process.env.SPACESHIP_CACHE_TTL, 10) * 1000
+  : undefined;
+const client = new SpaceshipClient(apiKey, apiSecret, undefined, cacheTtl);
 const server = createServer(client);
 
 const main = async (): Promise<void> => {

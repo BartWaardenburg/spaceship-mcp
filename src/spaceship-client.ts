@@ -1,3 +1,4 @@
+import { TtlCache } from "./cache.js";
 import type {
   DnsRecord,
   DnsRecordToDelete,
@@ -42,11 +43,26 @@ export class SpaceshipClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly apiSecret: string;
+  private readonly cache: TtlCache;
+  private readonly cachingEnabled: boolean;
 
-  constructor(apiKey: string, apiSecret: string, baseUrl = "https://spaceship.dev/api") {
+  constructor(apiKey: string, apiSecret: string, baseUrl = "https://spaceship.dev/api", cacheTtlMs?: number) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
+    this.cachingEnabled = cacheTtlMs !== 0;
+    this.cache = new TtlCache(cacheTtlMs ?? 120_000);
+  }
+
+  private async cachedRequest<T>(cacheKey: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
+    if (!this.cachingEnabled || ttlMs <= 0) return fetcher();
+
+    const cached = this.cache.get<T>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const result = await fetcher();
+    this.cache.set(cacheKey, result, ttlMs);
+    return result;
   }
 
   // --- DNS Records ---
@@ -69,9 +85,13 @@ export class SpaceshipClient {
   }
 
   async listAllDnsRecords(domain: string, orderBy?: OrderBy): Promise<DnsRecord[]> {
-    return this.paginate(
-      500,
-      (take, skip) => this.listDnsRecords(domain, { take, skip, ...(orderBy ? { orderBy } : {}) }),
+    return this.cachedRequest(
+      `dns:${domain}:${orderBy ?? ""}`,
+      120_000,
+      () => this.paginate(
+        500,
+        (take, skip) => this.listDnsRecords(domain, { take, skip, ...(orderBy ? { orderBy } : {}) }),
+      ),
     );
   }
 
@@ -103,6 +123,7 @@ export class SpaceshipClient {
       method: "PUT",
       body: JSON.stringify(payload),
     });
+    this.cache.invalidate(`dns:${domain}`);
   }
 
   async deleteDnsRecords(domain: string, records: DnsRecordToDelete[]): Promise<void> {
@@ -126,6 +147,7 @@ export class SpaceshipClient {
       method: "DELETE",
       body: JSON.stringify(payload),
     });
+    this.cache.invalidate(`dns:${domain}`);
   }
 
   // --- Domains ---
@@ -148,14 +170,22 @@ export class SpaceshipClient {
   }
 
   async listAllDomains(orderBy?: DomainOrderBy): Promise<Domain[]> {
-    return this.paginate(
-      100,
-      (take, skip) => this.listDomains({ take, skip, ...(orderBy ? { orderBy } : {}) }),
+    return this.cachedRequest(
+      `domains:all:${orderBy ?? ""}`,
+      300_000,
+      () => this.paginate(
+        100,
+        (take, skip) => this.listDomains({ take, skip, ...(orderBy ? { orderBy } : {}) }),
+      ),
     );
   }
 
   async getDomain(domain: string): Promise<Domain> {
-    return this.request<Domain>(`/v1/domains/${encodeURIComponent(domain)}`);
+    return this.cachedRequest(
+      `domain:${domain}`,
+      120_000,
+      () => this.request<Domain>(`/v1/domains/${encodeURIComponent(domain)}`),
+    );
   }
 
   async deleteDomain(domain: string): Promise<void> {
@@ -211,6 +241,7 @@ export class SpaceshipClient {
       method: "PUT",
       body: JSON.stringify({ isEnabled: enabled }),
     });
+    this.cache.invalidate(`domain:${domain}`);
   }
 
   async setTransferLock(domain: string, locked: boolean): Promise<void> {
@@ -293,6 +324,7 @@ export class SpaceshipClient {
         body: JSON.stringify({ privacyLevel: level, userConsent }),
       },
     );
+    this.cache.invalidate(`domain:${domain}`);
   }
 
   async setEmailProtection(domain: string, contactForm: boolean): Promise<void> {
@@ -321,14 +353,20 @@ export class SpaceshipClient {
   // --- Contacts ---
 
   async saveContact(contact: Contact): Promise<SaveContactResponse> {
-    return this.request<SaveContactResponse>("/v1/contacts", {
+    const result = await this.request<SaveContactResponse>("/v1/contacts", {
       method: "PUT",
       body: JSON.stringify(contact),
     });
+    this.cache.invalidate("contact:");
+    return result;
   }
 
   async getContact(contactId: string): Promise<Contact> {
-    return this.request<Contact>(`/v1/contacts/${encodeURIComponent(contactId)}`);
+    return this.cachedRequest(
+      `contact:${contactId}`,
+      300_000,
+      () => this.request<Contact>(`/v1/contacts/${encodeURIComponent(contactId)}`),
+    );
   }
 
   async saveContactAttributes(attributes: Record<string, string>): Promise<{ contactId: string }> {
@@ -407,7 +445,11 @@ export class SpaceshipClient {
   }
 
   async listAllSellerHubDomains(): Promise<SellerHubDomain[]> {
-    return this.paginate(100, (take, skip) => this.listSellerHubDomains({ take, skip }));
+    return this.cachedRequest(
+      "sellerhub:all",
+      120_000,
+      () => this.paginate(100, (take, skip) => this.listSellerHubDomains({ take, skip })),
+    );
   }
 
   async createSellerHubDomain(data: CreateSellerHubDomainRequest): Promise<SellerHubDomain> {
