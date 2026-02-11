@@ -12,7 +12,7 @@ const PRIVACY_LEVELS = ["high", "public"];
 
 const NAMESERVER_PROVIDERS = ["basic", "custom"];
 
-const domainCompleter = (client: SpaceshipClient) =>
+export const domainCompleter = (client: SpaceshipClient) =>
   async (value: string): Promise<string[]> => {
     try {
       const domains = await client.listAllDomains();
@@ -24,7 +24,7 @@ const domainCompleter = (client: SpaceshipClient) =>
     }
   };
 
-const staticCompleter = (options: string[]) =>
+export const staticCompleter = (options: string[]) =>
   (value: string | undefined): string[] =>
     options.filter((o) => o.toLowerCase().startsWith((value ?? "").toLowerCase()));
 
