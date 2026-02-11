@@ -1,6 +1,6 @@
 {
   "name": "spaceship-mcp",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "packageManager": "pnpm@10.28.1",
   "description": "MCP server for managing domains, DNS records, and marketplace listings via the Spaceship API",
   "type": "module",

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.4](https://github.com/BartWaardenburg/spaceship-mcp/compare/v0.2.3...v0.2.4) (2026-02-11)
+
+
+### Bug Fixes
+
+* align API implementation with OpenAPI spec and add CI workflow ([029a9d3](https://github.com/BartWaardenburg/spaceship-mcp/commit/029a9d35dfc61557dbe7bcd544e538433eafc92e))
+* **ci:** add packageManager field for pnpm/action-setup ([900c761](https://github.com/BartWaardenburg/spaceship-mcp/commit/900c7614d319574d356af8460a67f1724634137f))
+* **ci:** run vitest directly to ensure coverage output ([42440c2](https://github.com/BartWaardenburg/spaceship-mcp/commit/42440c294b76629a8e6716c343de5584ba47432b))
+* correct username casing in coverage badge URL ([3d965ff](https://github.com/BartWaardenburg/spaceship-mcp/commit/3d965ffc44e9596a519ac5b051d180f5569bf4e4))
+* remove unused ContactsSchema, fix postalCode nullish handling, improve sellerhub messaging ([ab73b3a](https://github.com/BartWaardenburg/spaceship-mcp/commit/ab73b3a58e2f34341d57003d46a5c8a15a82979c))
+
 ## [0.2.3](https://github.com/BartWaardenburg/spaceship-mcp/compare/v0.2.2...v0.2.3) (2026-02-11)
 
 
