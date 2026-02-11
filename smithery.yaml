@@ -1,0 +1,23 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - apiKey
+      - apiSecret
+    properties:
+      apiKey:
+        type: string
+        description: Spaceship API key
+      apiSecret:
+        type: string
+        description: Spaceship API secret
+  commandFunction: |
+    (config) => ({
+      command: 'npx',
+      args: ['-y', 'spaceship-mcp'],
+      env: {
+        SPACESHIP_API_KEY: config.apiKey,
+        SPACESHIP_API_SECRET: config.apiSecret
+      }
+    })

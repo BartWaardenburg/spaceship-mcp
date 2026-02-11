@@ -9,6 +9,8 @@ import { registerContactsPrivacyTools } from "./tools/contacts-privacy.js";
 import { registerSellerHubTools } from "./tools/sellerhub.js";
 import { registerPersonalNameserverTools } from "./tools/personal-nameservers.js";
 import { registerAnalysisTools } from "./tools/analysis.js";
+import { registerResources } from "./resources.js";
+import { registerPrompts } from "./prompts.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -32,7 +34,9 @@ export const parseToolsets = (env?: string): Set<Toolset> => {
   return valid.size > 0 ? valid : new Set(ALL_TOOLSETS);
 };
 
-const toolsetRegistry: Record<Toolset, ((server: McpServer, client: SpaceshipClient) => void)[]> = {
+type ToolRegisterer = (server: McpServer, client: SpaceshipClient) => void;
+
+const toolsetRegistry: Record<Toolset, ToolRegisterer[]> = {
   domains: [registerDomainManagementTools, registerDomainLifecycleTools],
   dns: [registerDnsRecordTools, registerDnsRecordCreatorTools, registerAnalysisTools],
   contacts: [registerContactsPrivacyTools],
@@ -49,11 +53,10 @@ export const createServer = (client: SpaceshipClient, toolsets?: Set<Toolset>): 
   });
 
   const enabled = toolsets ?? new Set(ALL_TOOLSETS);
-  const registered = new Set<Function>();
+  const registered = new Set<ToolRegisterer>();
 
   for (const toolset of enabled) {
     const registerers = toolsetRegistry[toolset];
-    if (!registerers) continue;
 
     for (const register of registerers) {
       if (!registered.has(register)) {
@@ -62,6 +65,9 @@ export const createServer = (client: SpaceshipClient, toolsets?: Set<Toolset>): 
       }
     }
   }
+
+  registerResources(server, client);
+  registerPrompts(server);
 
   return server;
 };
