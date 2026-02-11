@@ -16,19 +16,20 @@ describe("createServer", () => {
     expect(server).toBeDefined();
   });
 
-  it("registers all 26 tools", () => {
+  it("registers all 47 tools", () => {
     const tools = getTools();
-    expect(Object.keys(tools)).toHaveLength(26);
+    expect(Object.keys(tools)).toHaveLength(47);
   });
 
   it("registers all expected tool names", () => {
     const tools = getTools();
 
     const expectedTools = [
+      // DNS Records
       "list_dns_records",
-      "create_dns_record",
-      "update_dns_records",
+      "save_dns_records",
       "delete_dns_records",
+      // DNS Record Creators
       "create_a_record",
       "create_aaaa_record",
       "create_cname_record",
@@ -42,6 +43,7 @@ describe("createServer", () => {
       "create_ptr_record",
       "create_svcb_record",
       "create_tlsa_record",
+      // Domain Management
       "list_domains",
       "get_domain",
       "check_domain_availability",
@@ -49,8 +51,35 @@ describe("createServer", () => {
       "set_auto_renew",
       "set_transfer_lock",
       "get_auth_code",
+      // Domain Lifecycle
+      "register_domain",
+      "renew_domain",
+      "restore_domain",
+      "transfer_domain",
+      "get_transfer_status",
+      "get_async_operation",
+      // Contacts & Privacy
+      "save_contact",
+      "get_contact",
+      "save_contact_attributes",
+      "get_contact_attributes",
+      "update_domain_contacts",
+      "set_privacy_level",
+      "set_email_protection",
+      // SellerHub
+      "list_sellerhub_domains",
+      "create_sellerhub_domain",
+      "get_sellerhub_domain",
+      "update_sellerhub_domain",
+      "delete_sellerhub_domain",
+      "create_checkout_link",
+      "get_verification_records",
+      // Personal Nameservers
+      "list_personal_nameservers",
+      "update_personal_nameserver",
+      "delete_personal_nameserver",
+      // Analysis
       "check_dns_alignment",
-      "analyze_fly_cutover",
     ];
 
     for (const name of expectedTools) {

@@ -117,15 +117,41 @@ describe("SpaceshipClient", () => {
   });
 
   describe("deleteDnsRecords", () => {
-    it("sends DELETE with record identifiers", async () => {
+    it("fetches existing records then sends DELETE with full record data", async () => {
+      // First call: listAllDnsRecords (fetches existing)
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            { name: "@", type: "A", address: "1.2.3.4", ttl: 300 },
+            { name: "@", type: "TXT", value: "test", ttl: 300 },
+          ],
+          total: 2,
+        }),
+      );
+      // Second call: DELETE
       mockFetch.mockResolvedValueOnce(emptyResponse());
 
       await client.deleteDnsRecords("example.com", [{ name: "@", type: "A" }]);
 
-      const [, init] = mockFetch.mock.calls[0];
-      expect(init.method).toBe("DELETE");
-      const body = JSON.parse(init.body);
-      expect(body).toEqual([{ name: "@", type: "A" }]);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const [, deleteInit] = mockFetch.mock.calls[1];
+      expect(deleteInit.method).toBe("DELETE");
+      const body = JSON.parse(deleteInit.body);
+      expect(body).toHaveLength(1);
+      expect(body[0].name).toBe("@");
+      expect(body[0].type).toBe("A");
+      expect(body[0].address).toBe("1.2.3.4");
+    });
+
+    it("skips DELETE when no matching records found", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ items: [], total: 0 }),
+      );
+
+      await client.deleteDnsRecords("example.com", [{ name: "@", type: "A" }]);
+
+      // Only the list call, no DELETE
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -163,32 +189,52 @@ describe("SpaceshipClient", () => {
   });
 
   describe("domain operations", () => {
-    it("checkDomainAvailability calls correct endpoint", async () => {
-      mockFetch.mockResolvedValueOnce(jsonResponse({ domain: "test.com", available: true }));
+    it("checkDomainAvailability calls correct endpoint and maps result", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ domain: "test.com", result: "available", premiumPricing: [] }),
+      );
 
       const result = await client.checkDomainAvailability("test.com");
 
       expect(result.available).toBe(true);
+      expect(result.result).toBe("available");
       const [url] = mockFetch.mock.calls[0];
       expect(url).toContain("/v1/domains/test.com/available");
     });
 
-    it("checkDomainsAvailability posts multiple domains", async () => {
+    it("checkDomainAvailability maps taken result to available=false", async () => {
       mockFetch.mockResolvedValueOnce(
-        jsonResponse([
-          { domain: "a.com", available: true },
-          { domain: "b.com", available: false },
-        ]),
+        jsonResponse({ domain: "taken.com", result: "taken", premiumPricing: [] }),
+      );
+
+      const result = await client.checkDomainAvailability("taken.com");
+
+      expect(result.available).toBe(false);
+      expect(result.result).toBe("taken");
+    });
+
+    it("checkDomainsAvailability posts with domains field", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          domains: [
+            { domain: "a.com", result: "available", premiumPricing: [] },
+            { domain: "b.com", result: "taken", premiumPricing: [] },
+          ],
+        }),
       );
 
       const result = await client.checkDomainsAvailability(["a.com", "b.com"]);
 
       expect(result).toHaveLength(2);
+      expect(result[0].available).toBe(true);
+      expect(result[1].available).toBe(false);
       const [, init] = mockFetch.mock.calls[0];
       expect(init.method).toBe("POST");
+      const body = JSON.parse(init.body);
+      expect(body.domains).toEqual(["a.com", "b.com"]);
     });
 
-    it("updateNameservers sends PUT with nameservers", async () => {
+    it("updateNameservers sends PUT with custom provider and hosts", async () => {
       mockFetch.mockResolvedValueOnce(emptyResponse());
 
       await client.updateNameservers("example.com", ["ns1.fly.io", "ns2.fly.io"]);
@@ -196,7 +242,149 @@ describe("SpaceshipClient", () => {
       const [, init] = mockFetch.mock.calls[0];
       expect(init.method).toBe("PUT");
       const body = JSON.parse(init.body);
-      expect(body.items).toEqual(["ns1.fly.io", "ns2.fly.io"]);
+      expect(body.provider).toBe("custom");
+      expect(body.hosts).toEqual(["ns1.fly.io", "ns2.fly.io"]);
+    });
+
+    it("setPrivacyLevel sends PUT with privacyLevel and userConsent", async () => {
+      mockFetch.mockResolvedValueOnce(emptyResponse());
+
+      await client.setPrivacyLevel("example.com", "high", true);
+
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(url).toContain("/privacy/preference");
+      expect(init.method).toBe("PUT");
+      const body = JSON.parse(init.body);
+      expect(body.privacyLevel).toBe("high");
+      expect(body.userConsent).toBe(true);
+    });
+
+    it("updatePersonalNameserver sends host in body", async () => {
+      mockFetch.mockResolvedValueOnce(emptyResponse());
+
+      await client.updatePersonalNameserver("example.com", "ns1.example.com", ["1.2.3.4"]);
+
+      const [, init] = mockFetch.mock.calls[0];
+      const body = JSON.parse(init.body);
+      expect(body.host).toBe("ns1.example.com");
+      expect(body.ips).toEqual(["1.2.3.4"]);
+    });
+
+    it("createSellerHubDomain sends name field", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ name: "example.com", status: "verifying" }),
+      );
+
+      const result = await client.createSellerHubDomain("example.com");
+
+      expect(result.name).toBe("example.com");
+      const [, init] = mockFetch.mock.calls[0];
+      const body = JSON.parse(init.body);
+      expect(body.name).toBe("example.com");
+    });
+
+    it("updateSellerHubDomain sends pricing objects", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ name: "example.com", binPrice: { amount: "9999", currency: "USD" } }),
+      );
+
+      await client.updateSellerHubDomain("example.com", {
+        binPrice: { amount: "9999", currency: "USD" },
+      });
+
+      const [, init] = mockFetch.mock.calls[0];
+      expect(init.method).toBe("PATCH");
+      const body = JSON.parse(init.body);
+      expect(body.binPrice).toEqual({ amount: "9999", currency: "USD" });
+    });
+
+    it("createCheckoutLink sends type and domainName", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ url: "https://example.com/checkout" }));
+
+      await client.createCheckoutLink({ type: "buyNow", domainName: "example.com" });
+
+      const [, init] = mockFetch.mock.calls[0];
+      const body = JSON.parse(init.body);
+      expect(body.type).toBe("buyNow");
+      expect(body.domainName).toBe("example.com");
+    });
+
+    it("saveContactAttributes sends flat object", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ contactId: "abc123" }));
+
+      const result = await client.saveContactAttributes({ type: "us", appPurpose: "P1" });
+
+      expect(result.contactId).toBe("abc123");
+      const [, init] = mockFetch.mock.calls[0];
+      const body = JSON.parse(init.body);
+      expect(body.type).toBe("us");
+      expect(body.appPurpose).toBe("P1");
+    });
+
+    it("updateNameservers sends PUT with basic provider without hosts", async () => {
+      mockFetch.mockResolvedValueOnce(emptyResponse());
+
+      await client.updateNameservers("example.com", [], "basic");
+
+      const [, init] = mockFetch.mock.calls[0];
+      expect(init.method).toBe("PUT");
+      const body = JSON.parse(init.body);
+      expect(body.provider).toBe("basic");
+      expect(body).not.toHaveProperty("hosts");
+    });
+  });
+
+  describe("listPersonalNameservers", () => {
+    it("extracts records from response wrapper", async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          records: [
+            { host: "ns1.example.com", ips: ["1.2.3.4"] },
+            { host: "ns2.example.com", ips: ["5.6.7.8"] },
+          ],
+        }),
+      );
+
+      const result = await client.listPersonalNameservers("example.com");
+
+      expect(result).toHaveLength(2);
+      expect(result[0].host).toBe("ns1.example.com");
+    });
+
+    it("returns empty array when no records", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ records: [] }));
+
+      const result = await client.listPersonalNameservers("example.com");
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe("listAllSellerHubDomains", () => {
+    it("paginates through all pages", async () => {
+      const page1 = Array.from({ length: 100 }, (_, i) => ({
+        id: `id-${i}`,
+        domain: `domain${i}.com`,
+      }));
+      const page2 = [{ id: "id-100", domain: "domain100.com" }];
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ items: page1, total: 101 }))
+        .mockResolvedValueOnce(jsonResponse({ items: page2, total: 101 }));
+
+      const result = await client.listAllSellerHubDomains();
+
+      expect(result).toHaveLength(101);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops on empty page", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ items: [], total: 0 }));
+
+      const result = await client.listAllSellerHubDomains();
+
+      expect(result).toHaveLength(0);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 

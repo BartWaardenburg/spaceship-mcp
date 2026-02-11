@@ -111,14 +111,18 @@ export interface ListDomainsResponse {
   total: number;
 }
 
+export interface DomainAvailabilityRaw {
+  domain: string;
+  result: "available" | "taken" | string;
+  premiumPricing?: { duration?: number; registerPrice?: number; renewPrice?: number; currency?: string }[];
+  [key: string]: unknown;
+}
+
 export interface DomainAvailability {
   domain: string;
   available: boolean;
-  price?: {
-    register?: number;
-    renew?: number;
-    currency?: string;
-  };
+  result: string;
+  premiumPricing?: { duration?: number; registerPrice?: number; renewPrice?: number; currency?: string }[];
   [key: string]: unknown;
 }
 
@@ -204,14 +208,27 @@ export interface PersonalNameserver {
   ips?: string[];
 }
 
+export interface PersonalNameserverResponse {
+  records: PersonalNameserver[];
+}
+
 // --- SellerHub ---
 
+export interface SellerHubPrice {
+  amount: string;
+  currency: string;
+}
+
 export interface SellerHubDomain {
-  id: string;
-  domain: string;
-  price?: number;
-  currency?: string;
+  name: string;
+  unicodeName?: string;
+  displayName?: string;
   status?: string;
+  description?: string;
+  binPriceEnabled?: boolean;
+  binPrice?: SellerHubPrice;
+  minPriceEnabled?: boolean;
+  minPrice?: SellerHubPrice;
   [key: string]: unknown;
 }
 

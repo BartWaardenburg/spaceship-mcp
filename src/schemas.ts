@@ -1,6 +1,36 @@
 import * as z from "zod/v4";
 import type { DnsRecord } from "./types.js";
 
+export const ContactSchema = z.object({
+  contactId: z.string().optional().describe("Unique contact identifier (omit when creating a new contact)"),
+  firstName: z.string().min(1).max(255).describe("First name of the contact"),
+  lastName: z.string().min(1).max(255).describe("Last name of the contact"),
+  organization: z.string().max(255).optional().describe("Organization or company name"),
+  email: z.string().email().describe("Email address of the contact"),
+  address1: z.string().min(1).max(255).describe("Primary street address"),
+  address2: z.string().max(255).optional().describe("Secondary address line (apt, suite, etc.)"),
+  city: z.string().min(1).max(255).describe("City name"),
+  country: z.string().length(2).describe("ISO 3166-1 alpha-2 country code (e.g. US, DE, NL)"),
+  stateProvince: z.string().max(255).optional().describe("State or province name/code"),
+  postalCode: z.string().min(1).max(20).describe("Postal or ZIP code"),
+  phone: z.string().min(1).max(30).describe("Phone number in E.164 format (e.g. +1.5551234567)"),
+  phoneExtension: z.string().max(10).optional().describe("Phone extension number"),
+  fax: z.string().max(30).optional().describe("Fax number in E.164 format"),
+  faxExtension: z.string().max(10).optional().describe("Fax extension number"),
+});
+
+export const ContactAttributeSchema = z.object({
+  attributeKey: z.string().min(1).describe("Attribute key (e.g. 'registrantVatId', 'companyNumber')"),
+  attributeValue: z.string().min(1).describe("Attribute value"),
+});
+
+export const ContactsSchema = z.object({
+  registrant: ContactSchema.optional().describe("Registrant contact (domain owner)"),
+  admin: ContactSchema.optional().describe("Administrative contact"),
+  tech: ContactSchema.optional().describe("Technical contact"),
+  billing: ContactSchema.optional().describe("Billing contact"),
+}).describe("Domain contacts. If omitted, account default contacts are used.");
+
 export const WebRecordTypeSchema = z.enum([
   "A", "AAAA", "ALIAS", "CAA", "CNAME", "HTTPS", "MX", "NS", "PTR", "SRV", "SVCB", "TLSA", "TXT",
 ]);

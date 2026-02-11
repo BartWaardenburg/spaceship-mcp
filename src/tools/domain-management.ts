@@ -15,12 +15,13 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
         fetchAll: z.boolean().default(true).describe("Fetch all pages."),
         take: z.number().int().min(1).max(100).default(100).describe("Items per page when fetchAll=false."),
         skip: z.number().int().min(0).default(0).describe("Offset when fetchAll=false."),
+        orderBy: z.enum(["name", "-name", "unicodeName", "-unicodeName", "registrationDate", "-registrationDate", "expirationDate", "-expirationDate"]).optional().describe("Sort order. Prefix with '-' for descending."),
       }),
     },
-    async ({ fetchAll, take, skip }) => {
+    async ({ fetchAll, take, skip, orderBy }) => {
       try {
         if (fetchAll) {
-          const domains = await client.listAllDomains();
+          const domains = await client.listAllDomains(orderBy);
           return toTextResult(
             [
               `Total domains: ${domains.length}`,
@@ -30,7 +31,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
           );
         }
 
-        const response = await client.listDomains({ take, skip });
+        const response = await client.listDomains({ take, skip, orderBy });
         return toTextResult(
           [
             `Total: ${response.total}, showing ${response.items.length} (skip: ${skip})`,
@@ -48,7 +49,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
     "get_domain",
     {
       title: "Get Domain Details",
-      description: "Get detailed information about a specific domain.",
+      description: "Get detailed information about a specific domain including registration/expiration dates, auto-renewal status, privacy protection level, nameservers, lifecycle status, and contacts.",
       annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
@@ -65,8 +66,9 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
             info.registrationDate ? `Registered: ${info.registrationDate}` : null,
             info.expirationDate ? `Expires: ${info.expirationDate}` : null,
             info.autoRenew !== undefined ? `Auto-renew: ${info.autoRenew}` : null,
-            info.privacyLevel ? `Privacy: ${info.privacyLevel}` : null,
-            info.status ? `Status: ${info.status}` : null,
+            info.lifecycleStatus ? `Lifecycle: ${info.lifecycleStatus}` : null,
+            info.verificationStatus ? `Verification: ${info.verificationStatus}` : null,
+            info.privacyProtection?.level ? `Privacy: ${info.privacyProtection.level}` : null,
             info.nameservers?.hosts ? `Nameservers: ${info.nameservers.hosts.join(", ")}` : null,
           ]
             .filter(Boolean)
@@ -83,7 +85,7 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
     "check_domain_availability",
     {
       title: "Check Domain Availability",
-      description: "Check if one or more domains are available for registration.",
+      description: "Check if one or more domains are available for registration and show pricing. Provide up to 20 domains to check at once.",
       annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: z.object({
         domains: z
@@ -95,24 +97,27 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
     },
     async ({ domains }) => {
       try {
+        const formatResult = (r: { domain: string; available: boolean; premiumPricing?: { registerPrice?: number; currency?: string }[] }): string => {
+          const pricing = r.premiumPricing?.[0];
+          const priceStr = pricing?.registerPrice !== undefined
+            ? ` (${pricing.currency ?? "USD"} ${pricing.registerPrice})`
+            : "";
+          return `${r.domain}: ${r.available ? "AVAILABLE" : "NOT AVAILABLE"}${priceStr}`;
+        };
+
         if (domains.length === 1) {
           const result = await client.checkDomainAvailability(normalizeDomain(domains[0]));
-          return toTextResult(
-            `${result.domain}: ${result.available ? "AVAILABLE" : "NOT AVAILABLE"}${result.price?.register ? ` ($${result.price.register})` : ""}`,
-            result,
-          );
+          return toTextResult(formatResult(result), result);
         }
 
         const results = await client.checkDomainsAvailability(
           domains.map(normalizeDomain),
         );
 
-        const lines = results.map(
-          (r) =>
-            `${r.domain}: ${r.available ? "AVAILABLE" : "NOT AVAILABLE"}${r.price?.register ? ` ($${r.price.register})` : ""}`,
+        return toTextResult(
+          results.map(formatResult).join("\n"),
+          { results } as Record<string, unknown>,
         );
-
-        return toTextResult(lines.join("\n"), { results } as Record<string, unknown>);
       } catch (error) {
         return toErrorResult(error);
       }
@@ -123,21 +128,36 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
     "update_nameservers",
     {
       title: "Update Nameservers",
-      description: "Update the nameservers for a domain.",
+      description:
+        "Update the nameservers for a domain. This replaces ALL current nameservers with the provided list. " +
+        'Set provider to "basic" to switch to Spaceship\'s built-in DNS (nameservers list is ignored). ' +
+        'Set provider to "custom" (default) to use external nameservers. ' +
+        "WARNING: Changing nameservers affects DNS resolution for ALL services on this domain and may cause extended downtime if misconfigured. " +
+        "Always confirm with the user before calling this tool and use get_domain first to check current nameservers.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
+        provider: z
+          .enum(["basic", "custom"])
+          .default("custom")
+          .describe('"basic" for Spaceship built-in DNS, "custom" for external nameservers'),
         nameservers: z
           .array(z.string().min(1))
-          .min(1)
           .max(6)
-          .describe("List of nameserver hostnames"),
+          .default([])
+          .describe('List of nameserver hostnames (required for "custom" provider, ignored for "basic")'),
       }),
     },
-    async ({ domain, nameservers }) => {
+    async ({ domain, provider, nameservers }) => {
       try {
         const normalizedDomain = normalizeDomain(domain);
-        await client.updateNameservers(normalizedDomain, nameservers);
+        await client.updateNameservers(normalizedDomain, nameservers, provider);
+
+        if (provider === "basic") {
+          return toTextResult(
+            `Successfully switched ${normalizedDomain} to Spaceship built-in DNS`,
+          );
+        }
 
         return toTextResult(
           `Successfully updated nameservers for ${normalizedDomain}: ${nameservers.join(", ")}`,
@@ -152,7 +172,10 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
     "set_auto_renew",
     {
       title: "Set Auto-Renew",
-      description: "Enable or disable auto-renewal for a domain.",
+      description:
+        "Enable or disable auto-renewal for a domain. " +
+        "WARNING: Disabling auto-renewal risks losing the domain when it expires — the domain may become available for others to register. " +
+        "Always confirm with the user before disabling auto-renewal.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
@@ -177,7 +200,10 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
     "set_transfer_lock",
     {
       title: "Set Transfer Lock",
-      description: "Enable or disable transfer lock for a domain.",
+      description:
+        "Enable or disable transfer lock for a domain. " +
+        "WARNING: Disabling the transfer lock makes the domain vulnerable to unauthorized transfers away from this account. " +
+        "Only unlock when intentionally transferring the domain. Always confirm with the user before unlocking.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
@@ -202,7 +228,10 @@ export const registerDomainManagementTools = (server: McpServer, client: Spacesh
     "get_auth_code",
     {
       title: "Get Auth/EPP Code",
-      description: "Retrieve the authorization/EPP code for domain transfer.",
+      description:
+        "Retrieve the authorization/EPP code for domain transfer. " +
+        "WARNING: The auth code is a sensitive credential — anyone with this code can initiate a domain transfer. " +
+        "Never share the auth code publicly or log it in plain text. Always confirm with the user before retrieving.",
       annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: z.object({
         domain: z.string().min(4).max(255).describe("The domain name"),
