@@ -9,6 +9,7 @@ import { registerContactsPrivacyTools } from "./tools/contacts-privacy.js";
 import { registerSellerHubTools } from "./tools/sellerhub.js";
 import { registerPersonalNameserverTools } from "./tools/personal-nameservers.js";
 import { registerAnalysisTools } from "./tools/analysis.js";
+import { registerPrompts } from "./prompts.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -27,6 +28,7 @@ export const createServer = (client: SpaceshipClient): McpServer => {
   registerSellerHubTools(server, client);
   registerPersonalNameserverTools(server, client);
   registerAnalysisTools(server, client);
+  registerPrompts(server);
 
   return server;
 };
