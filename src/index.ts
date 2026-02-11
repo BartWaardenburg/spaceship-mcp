@@ -3,7 +3,7 @@
 import { createRequire } from "node:module";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SpaceshipClient } from "./spaceship-client.js";
-import { createServer } from "./server.js";
+import { createServer, parseToolsets } from "./server.js";
 import { checkForUpdate } from "./update-checker.js";
 
 const require = createRequire(import.meta.url);
@@ -18,7 +18,8 @@ if (!apiKey || !apiSecret) {
 }
 
 const client = new SpaceshipClient(apiKey, apiSecret);
-const server = createServer(client);
+const toolsets = parseToolsets(process.env.SPACESHIP_TOOLSETS);
+const server = createServer(client, toolsets);
 
 const main = async (): Promise<void> => {
   const transport = new StdioServerTransport();
