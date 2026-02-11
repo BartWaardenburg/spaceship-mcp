@@ -3,3 +3,4 @@ dist
 .env
 *.tgz
 .DS_Store
+.mcpregistry_*
