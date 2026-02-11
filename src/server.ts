@@ -9,24 +9,33 @@ import { registerContactsPrivacyTools } from "./tools/contacts-privacy.js";
 import { registerSellerHubTools } from "./tools/sellerhub.js";
 import { registerPersonalNameserverTools } from "./tools/personal-nameservers.js";
 import { registerAnalysisTools } from "./tools/analysis.js";
+import { registerDynamicTools } from "./dynamic-tools.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 
-export const createServer = (client: SpaceshipClient): McpServer => {
+export interface ServerOptions {
+  dynamicTools?: boolean;
+}
+
+export const createServer = (client: SpaceshipClient, options: ServerOptions = {}): McpServer => {
   const server = new McpServer({
     name: "spaceship-mcp",
     version,
   });
 
-  registerDnsRecordTools(server, client);
-  registerDnsRecordCreatorTools(server, client);
-  registerDomainManagementTools(server, client);
-  registerDomainLifecycleTools(server, client);
-  registerContactsPrivacyTools(server, client);
-  registerSellerHubTools(server, client);
-  registerPersonalNameserverTools(server, client);
-  registerAnalysisTools(server, client);
+  if (options.dynamicTools) {
+    registerDynamicTools(server, client);
+  } else {
+    registerDnsRecordTools(server, client);
+    registerDnsRecordCreatorTools(server, client);
+    registerDomainManagementTools(server, client);
+    registerDomainLifecycleTools(server, client);
+    registerContactsPrivacyTools(server, client);
+    registerSellerHubTools(server, client);
+    registerPersonalNameserverTools(server, client);
+    registerAnalysisTools(server, client);
+  }
 
   return server;
 };

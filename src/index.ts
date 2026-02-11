@@ -17,8 +17,9 @@ if (!apiKey || !apiSecret) {
   process.exit(1);
 }
 
+const dynamicTools = process.env.SPACESHIP_DYNAMIC_TOOLS === "true";
 const client = new SpaceshipClient(apiKey, apiSecret);
-const server = createServer(client);
+const server = createServer(client, { dynamicTools });
 
 const main = async (): Promise<void> => {
   const transport = new StdioServerTransport();
