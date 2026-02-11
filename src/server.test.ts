@@ -96,6 +96,14 @@ describe("createServer", () => {
     }
   });
 
+  it("registers only 3 meta-tools in dynamic mode", () => {
+    const tools = (createServer(mockClient, undefined, true) as unknown as ServerWithTools)._registeredTools;
+    expect(Object.keys(tools)).toHaveLength(3);
+    expect(Object.keys(tools)).toEqual(
+      expect.arrayContaining(["search_tools", "describe_tools", "execute_tool"]),
+    );
+  });
+
   it("registers all 9 prompts (5 guided + 4 completable)", () => {
     type ServerWithPrompts = { _registeredPrompts: Record<string, unknown> };
     const server = createServer(mockClient) as unknown as ServerWithPrompts;

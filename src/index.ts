@@ -23,9 +23,10 @@ const cacheTtl = process.env.SPACESHIP_CACHE_TTL !== undefined
 const maxRetries = process.env.SPACESHIP_MAX_RETRIES !== undefined
   ? parseInt(process.env.SPACESHIP_MAX_RETRIES, 10)
   : 3;
+const dynamicTools = process.env.SPACESHIP_DYNAMIC_TOOLS === "true";
 const client = new SpaceshipClient(apiKey, apiSecret, undefined, cacheTtl, { maxRetries });
 const toolsets = parseToolsets(process.env.SPACESHIP_TOOLSETS);
-const server = createServer(client, toolsets);
+const server = createServer(client, toolsets, dynamicTools);
 
 const main = async (): Promise<void> => {
   const transport = new StdioServerTransport();
