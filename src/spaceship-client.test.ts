@@ -823,6 +823,110 @@ describe("SpaceshipClient", () => {
     });
   });
 
+  describe("rate limit retry", () => {
+    it("retries on 429 with exponential backoff", async () => {
+      vi.useFakeTimers();
+
+      const rateLimited = () =>
+        new Response(JSON.stringify({ code: "RATE_LIMITED" }), {
+          status: 429,
+          headers: { "content-type": "application/json" },
+        });
+
+      mockFetch
+        .mockResolvedValueOnce(rateLimited())
+        .mockResolvedValueOnce(jsonResponse({ name: "example.com" }));
+
+      const promise = client.getDomain("example.com");
+      await vi.advanceTimersByTimeAsync(1000);
+      const result = await promise;
+
+      expect(result.name).toBe("example.com");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it("respects Retry-After header", async () => {
+      vi.useFakeTimers();
+
+      const rateLimited = new Response(JSON.stringify({ code: "RATE_LIMITED" }), {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": "5" },
+      });
+
+      mockFetch
+        .mockResolvedValueOnce(rateLimited)
+        .mockResolvedValueOnce(jsonResponse({ name: "example.com" }));
+
+      const promise = client.getDomain("example.com");
+
+      // Should not resolve after 4s
+      await vi.advanceTimersByTimeAsync(4000);
+      // Should resolve after 5s
+      await vi.advanceTimersByTimeAsync(1000);
+
+      const result = await promise;
+      expect(result.name).toBe("example.com");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it("throws after exhausting all retries", async () => {
+      const singleRetry = new SpaceshipClient("k", "s", "https://api.test.com", { maxRetries: 1 });
+
+      vi.useFakeTimers();
+
+      const make429 = () =>
+        new Response(JSON.stringify({ code: "RATE_LIMITED" }), {
+          status: 429,
+          headers: { "content-type": "application/json" },
+        });
+
+      mockFetch
+        .mockResolvedValueOnce(make429())
+        .mockResolvedValueOnce(make429());
+
+      const promise = singleRetry.getDomain("example.com").catch((e: unknown) => e);
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      const error = await promise;
+      expect(error).toBeInstanceOf(SpaceshipApiError);
+      expect((error as SpaceshipApiError).status).toBe(429);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it("does not retry non-429 errors", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "NOT_FOUND" }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await expect(client.getDomain("example.com")).rejects.toThrow(SpaceshipApiError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries can be disabled with maxRetries=0", async () => {
+      const noRetry = new SpaceshipClient("k", "s", "https://api.test.com", { maxRetries: 0 });
+
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "RATE_LIMITED" }), {
+          status: 429,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await expect(noRetry.getDomain("example.com")).rejects.toThrow(SpaceshipApiError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("error handling with text response", () => {
     it("throws SpaceshipApiError with text body on non-JSON error", async () => {
       mockFetch.mockResolvedValueOnce(

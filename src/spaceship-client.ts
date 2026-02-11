@@ -38,15 +38,31 @@ export class SpaceshipApiError extends Error {
   }
 }
 
+export interface RetryOptions {
+  maxRetries: number;
+}
+
+const DEFAULT_RETRY: RetryOptions = { maxRetries: 3 };
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 export class SpaceshipClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly apiSecret: string;
+  private readonly retry: RetryOptions;
 
-  constructor(apiKey: string, apiSecret: string, baseUrl = "https://spaceship.dev/api") {
+  constructor(
+    apiKey: string,
+    apiSecret: string,
+    baseUrl = "https://spaceship.dev/api",
+    retry: RetryOptions = DEFAULT_RETRY,
+  ) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
+    this.retry = retry;
   }
 
   // --- DNS Records ---
@@ -631,20 +647,34 @@ export class SpaceshipClient {
     headers.set("X-API-Secret", this.apiSecret);
     headers.set("Content-Type", "application/json");
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
-      headers,
-    });
+    const url = `${this.baseUrl}${path}`;
+    const requestInit: RequestInit = { ...init, headers };
 
-    if (response.ok || response.status === 204 || response.status === 202) {
-      return response;
+    for (let attempt = 0; attempt <= this.retry.maxRetries; attempt++) {
+      const response = await fetch(url, requestInit);
+
+      if (response.ok || response.status === 204 || response.status === 202) {
+        return response;
+      }
+
+      if (response.status === 429 && attempt < this.retry.maxRetries) {
+        const retryAfter = response.headers.get("retry-after");
+        const delayMs = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : Math.pow(2, attempt) * 1000;
+        await sleep(delayMs);
+        continue;
+      }
+
+      throw new SpaceshipApiError(
+        `Spaceship API request failed: ${response.status} ${response.statusText}`,
+        response.status,
+        await SpaceshipClient.parseBody(response),
+      );
     }
 
-    throw new SpaceshipApiError(
-      `Spaceship API request failed: ${response.status} ${response.statusText}`,
-      response.status,
-      await SpaceshipClient.parseBody(response),
-    );
+    // Unreachable — the loop always returns or throws
+    throw new Error("Retry loop exited unexpectedly");
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {

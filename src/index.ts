@@ -17,7 +17,10 @@ if (!apiKey || !apiSecret) {
   process.exit(1);
 }
 
-const client = new SpaceshipClient(apiKey, apiSecret);
+const maxRetries = process.env.SPACESHIP_MAX_RETRIES !== undefined
+  ? parseInt(process.env.SPACESHIP_MAX_RETRIES, 10)
+  : 3;
+const client = new SpaceshipClient(apiKey, apiSecret, undefined, { maxRetries });
 const server = createServer(client);
 
 const main = async (): Promise<void> => {
