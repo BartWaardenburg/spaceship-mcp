@@ -11,43 +11,9 @@ A community-built [Model Context Protocol](https://modelcontextprotocol.io) (MCP
 
 > **Note:** This is an unofficial, community-maintained project and is not affiliated with or endorsed by Spaceship.
 
-## Features
+## Add To Your Editor
 
-- **48 tools** across 8 categories covering the full Spaceship API
-- **13 DNS record types** with dedicated, type-safe creation tools (A, AAAA, ALIAS, CAA, CNAME, HTTPS, MX, NS, PTR, SRV, SVCB, TLSA, TXT)
-- **Complete domain lifecycle** — register, renew, transfer, and restore domains
-- **SellerHub integration** — list domains for sale and generate checkout links
-- **DNS alignment analysis** — compare expected vs actual records to catch misconfigurations
-- **WHOIS privacy and contact management** with TLD-specific attribute support
-- **Input and output validation** via Zod schemas on every tool for safe, predictable operations
-- **5 MCP Resources** for passive context loading (domain list, domain details, DNS records, contacts, SellerHub)
-- **9 MCP Prompts** — 5 guided workflows and 4 with argument auto-complete
-- **Resource subscriptions** with polling-based change detection and automatic notifications
-- **Response caching** with configurable TTL and automatic invalidation on writes
-- **Rate limit handling** with exponential backoff and `Retry-After` header support
-- **Toolset filtering** to expose only the tool categories you need
-- **Dynamic tool loading** mode for agents with constrained context windows
-- **Actionable error messages** with context-aware recovery suggestions
-- **Docker support** for containerized deployment
-- **453 unit tests** with near-complete coverage
-
-## Supported Clients
-
-This MCP server works with any client that supports the Model Context Protocol, including:
-
-| Client | Easiest install |
-|---|---|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | One-liner: `claude mcp add` |
-| [Codex CLI](https://github.com/openai/codex) (OpenAI) | One-liner: `codex mcp add` |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) (Google) | One-liner: `gemini mcp add` |
-| [VS Code](https://code.visualstudio.com/) (Copilot) | Command Palette: `MCP: Add Server` |
-| [Claude Desktop](https://claude.ai/download) | JSON config file |
-| [Cursor](https://cursor.com) | JSON config file |
-| [Windsurf](https://codeium.com/windsurf) | JSON config file |
-| [Cline](https://github.com/cline/cline) | UI settings |
-| [Zed](https://zed.dev) | JSON settings file |
-
-## Installation
+CLI one-liners — the fastest way to get started. Pick your tool:
 
 ### Claude Code
 
@@ -97,18 +63,9 @@ Or add to `.vscode/mcp.json` in your project directory:
 }
 ```
 
-### Claude Desktop / Cursor / Windsurf / Cline
+### Cursor
 
-These clients share the same JSON format. Add the config below to the appropriate file:
-
-| Client | Config file |
-|---|---|
-| Claude Desktop (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Claude Desktop (Windows) | `%APPDATA%\Claude\claude_desktop_config.json` |
-| Cursor (project) | `.cursor/mcp.json` |
-| Cursor (global) | `~/.cursor/mcp.json` |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
-| Cline | Settings > MCP Servers > Edit |
+Add to `.cursor/mcp.json` (project-level) or `~/.cursor/mcp.json` (global):
 
 ```json
 {
@@ -125,9 +82,73 @@ These clients share the same JSON format. Add the config below to the appropriat
 }
 ```
 
-### Zed
+## Supported Clients
 
-Add to your Zed settings (`~/.zed/settings.json` on macOS, `~/.config/zed/settings.json` on Linux):
+This MCP server works with any client that supports the Model Context Protocol, including:
+
+| Client | Easiest install |
+|---|---|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | One-liner: `claude mcp add` |
+| [Codex CLI](https://github.com/openai/codex) (OpenAI) | One-liner: `codex mcp add` |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) (Google) | One-liner: `gemini mcp add` |
+| [VS Code](https://code.visualstudio.com/) (Copilot) | Command Palette: `MCP: Add Server` |
+| [Claude Desktop](https://claude.ai/download) | JSON config file |
+| [Cursor](https://cursor.com) | JSON config file |
+| [Windsurf](https://codeium.com/windsurf) | JSON config file |
+| [Cline](https://github.com/cline/cline) | UI settings |
+| [Zed](https://zed.dev) | JSON settings file |
+
+<details>
+<summary><strong>Claude Desktop, Cowork & other GUI clients (expand)</strong></summary>
+
+### Claude Desktop / Cowork
+
+Cowork runs inside Claude Desktop and uses the same connected MCP servers and permissions. Configure once in Claude Desktop, then the server is available in Cowork.
+
+Add the following to your Claude Desktop config file:
+
+| Platform | Config file |
+|---|---|
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+
+```json
+{
+  "mcpServers": {
+    "spaceship-mcp": {
+      "command": "npx",
+      "args": ["-y", "spaceship-mcp"],
+      "env": {
+        "SPACESHIP_API_KEY": "your-key",
+        "SPACESHIP_API_SECRET": "your-secret"
+      }
+    }
+  }
+}
+```
+
+### Windsurf / Cline / Zed
+
+**Windsurf** — add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "spaceship-mcp": {
+      "command": "npx",
+      "args": ["-y", "spaceship-mcp"],
+      "env": {
+        "SPACESHIP_API_KEY": "your-key",
+        "SPACESHIP_API_SECRET": "your-secret"
+      }
+    }
+  }
+}
+```
+
+**Cline** — open Settings > MCP Servers > Edit, then add the same `mcpServers` block shown above.
+
+**Zed** — add to your Zed settings (`~/.zed/settings.json` on macOS, `~/.config/zed/settings.json` on Linux):
 
 ```json
 {
@@ -153,6 +174,24 @@ docker run -i --rm \
   ghcr.io/bartwaardenburg/spaceship-mcp
 ```
 
+### Generic MCP Server Config
+
+Use this as the baseline in any host:
+
+- **Command:** `npx`
+- **Args:** `["-y", "spaceship-mcp"]`
+- **Required env vars:** `SPACESHIP_API_KEY`, `SPACESHIP_API_SECRET`
+- **Optional env vars:** `SPACESHIP_CACHE_TTL`, `SPACESHIP_MAX_RETRIES`, `SPACESHIP_TOOLSETS`, `SPACESHIP_DYNAMIC_TOOLS` (see [Configuration](#configuration))
+
+Host key mapping:
+
+| Host | Top-level key | Notes |
+|---|---|---|
+| VS Code | `servers` | Add `"type": "stdio"` on the server object |
+| Claude Desktop / Cursor / Windsurf / Cline | `mcpServers` | Same command/args/env block |
+| Zed | `context_servers` | Same command/args/env block |
+| Codex CLI (TOML) | `mcp_servers` | Uses TOML, shown below |
+
 ### Codex CLI (TOML config alternative)
 
 If you prefer editing `~/.codex/config.toml` directly:
@@ -171,6 +210,53 @@ For any MCP-compatible client, use this server configuration:
 - **Command:** `npx`
 - **Args:** `["-y", "spaceship-mcp"]`
 - **Environment variables:** `SPACESHIP_API_KEY` and `SPACESHIP_API_SECRET`
+
+### Claude Ecosystem Notes
+
+Claude currently has multiple MCP-related concepts that are easy to mix up:
+
+- **Local MCP servers (Claude Desktop):** defined in `claude_desktop_config.json` and started on your machine ([docs](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop)).
+- **Cowork:** reuses the MCP servers connected in Claude Desktop ([docs](https://support.claude.com/en/articles/13345190-get-started-with-cowork)).
+- **Connectors:** remote MCP integrations managed in Claude ([docs](https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities)).
+- **Cowork plugins:** Claude-specific workflow packaging (instructions + tools/data integrations) ([docs](https://support.claude.com/en/articles/13837440-use-plugins-in-cowork)). Useful in Claude, but not portable as a generic MCP server config for other agent clients.
+
+Verified against vendor docs on **2026-03-05**.
+
+### Terminology
+
+What is portable across hosts:
+
+- MCP server runtime settings (`command`, `args`, `env`)
+- Transport model (`stdio` command server)
+- Tool names and tool schemas exposed by this server
+
+What is host/vendor-specific (not portable as-is):
+
+- Host config key names (`servers`, `mcpServers`, `context_servers`, `mcp_servers`)
+- Host UX/workflows for adding servers (CLI commands, UI menus, settings paths)
+- Anthropic-specific concepts such as [Claude Desktop local MCP servers](https://docs.anthropic.com/en/docs/claude-desktop/mcp), [Claude Connectors via remote MCP](https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers), and [Claude Code plugins](https://docs.anthropic.com/en/docs/claude-code/plugins) used in Cowork workflows
+
+</details>
+
+## Features
+
+- **48 tools** across 8 categories covering the full Spaceship API
+- **13 DNS record types** with dedicated, type-safe creation tools (A, AAAA, ALIAS, CAA, CNAME, HTTPS, MX, NS, PTR, SRV, SVCB, TLSA, TXT)
+- **Complete domain lifecycle** — register, renew, transfer, and restore domains
+- **SellerHub integration** — list domains for sale and generate checkout links
+- **DNS alignment analysis** — compare expected vs actual records to catch misconfigurations
+- **WHOIS privacy and contact management** with TLD-specific attribute support
+- **Input and output validation** via Zod schemas on every tool for safe, predictable operations
+- **5 MCP Resources** for passive context loading (domain list, domain details, DNS records, contacts, SellerHub)
+- **9 MCP Prompts** — 5 guided workflows and 4 with argument auto-complete
+- **Resource subscriptions** with polling-based change detection and automatic notifications
+- **Response caching** with configurable TTL and automatic invalidation on writes
+- **Rate limit handling** with exponential backoff and `Retry-After` header support
+- **Toolset filtering** to expose only the tool categories you need
+- **Dynamic tool loading** mode for agents with constrained context windows
+- **Actionable error messages** with context-aware recovery suggestions
+- **Docker support** for containerized deployment
+- **453 unit tests** with near-complete coverage
 
 ## Configuration
 
@@ -439,6 +525,13 @@ SPACESHIP_DYNAMIC_TOOLS=true
 
 Resources, prompts, and completions remain available in dynamic mode.
 
+## Security Notes
+
+- **Trust model:** Any prompt or agent allowed to call this MCP server can execute Spaceship API actions with the configured credentials.
+- **Least-privilege credentials:** Use separate Spaceship API keys per environment/team/use case and enable only the scopes you need (see [Available Scopes](#available-scopes)).
+- **Write-action approvals:** Enable host-side approvals for mutating tools (`register_domain`, `create_*`, `update_*`, `delete_*`, `save_*`, `set_*`, and lifecycle operations).
+- **Team config governance:** Keep shared MCP config in version control, require review for changes to command/args/env/toolset filtering, and keep secrets in a vault or host secret manager (not in plain-text repo files).
+
 ## Example Usage
 
 Once connected, you can interact with the Spaceship API using natural language:
@@ -451,6 +544,13 @@ Once connected, you can interact with the Spaceship API using natural language:
 - "Check if my DNS records for example.com match what I expect"
 - "List my domains for sale on SellerHub"
 - "Transfer example.com to Spaceship"
+
+## Community
+
+- Support: [SUPPORT.md](SUPPORT.md)
+- Security reporting: [SECURITY.md](SECURITY.md)
+- Contributing guidelines: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Bug reports and feature requests: [Issues](https://github.com/bartwaardenburg/spaceship-mcp/issues)
 
 ## Development
 
