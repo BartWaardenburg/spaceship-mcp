@@ -238,6 +238,10 @@ What is host/vendor-specific (not portable as-is):
 
 </details>
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/spaceship-mcp).
+
 ## Features
 
 - **48 tools** across 8 categories covering the full Spaceship API
