@@ -1,0 +1,93 @@
+name: Publish Docker
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: 'Published GitHub release to build'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ steps.target.outputs.commit_sha }}
+      tag_name: ${{ steps.target.outputs.tag_name }}
+    steps:
+      - name: Validate published release and main ancestry
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          TRUSTED_MAIN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo '::error::Release ID must be a positive integer.'
+            exit 1
+          fi
+          RELEASE_JSON="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID")"
+          TAG_NAME="$(jq -er 'select(.draft == false and (.published_at | type == "string")) | .tag_name | select(type == "string" and length > 0)' <<<"$RELEASE_JSON")"
+          git check-ref-format "refs/tags/$TAG_NAME"
+          COMMIT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/refs/tags/$TAG_NAME" --jq .sha)"
+          if [[ ! "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo '::error::Release tag did not resolve to an exact commit.'
+            exit 1
+          fi
+          ANCESTRY="$(gh api "repos/$GITHUB_REPOSITORY/compare/$COMMIT_SHA...$TRUSTED_MAIN_SHA" --jq .status)"
+          case "$ANCESTRY" in
+            identical|ahead) ;;
+            *) echo '::error::Release tag is outside protected main history.'; exit 1 ;;
+          esac
+          echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    needs: validate-release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-release.outputs.commit_sha }}
+          persist-credentials: false
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.validate-release.outputs.tag_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.validate-release.outputs.tag_name }}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.revision=${{ needs.validate-release.outputs.commit_sha }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
