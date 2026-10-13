@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?$/;
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -29,7 +29,7 @@ const run = (command, args, env = childEnv, capture = false, cwd = process.cwd()
   if (result.error || result.status !== 0) fail(`${command} failed. No automatic rollback was performed.`);
   return result.stdout?.trim() ?? '';
 };
-const git = (args, env = childEnv) => run('git', args, env, true);
+const git = (args) => run('git', ['-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null', ...args], childEnv, true);
 const requireClean = () => {
   if (git(['status', '--porcelain']) !== '') fail('Commit or remove local changes before releasing.');
 };
@@ -45,14 +45,52 @@ const endpoint = (value, hostname, token) => {
   }
   return url;
 };
-const tagTarget = (tag, env) => {
-  const refs = git(['ls-remote', 'origin', `refs/tags/${tag}`, `refs/tags/${tag}^{}`], env).split('\n').filter(Boolean);
+const resetWorkspace = () => {
+  if (workspace) rmSync(workspace, { recursive: true, force: true });
+  workspace = mkdtempSync(join(tmpdir(), 'package-release-'));
+  isolateNpm(workspace);
+};
+const publisherGit = (bundle, sha, author, origin, token) => {
+  const directory = join(workspace, 'publisher.git');
+  const templates = join(workspace, 'empty-templates');
+  const archive = join(workspace, 'source.bundle');
+  mkdirSync(templates);
+  writeFileSync(archive, bundle);
+  const settings = {
+    'credential.helper': '', 'core.sshCommand': 'false', 'core.hooksPath': '/dev/null',
+    'core.fsmonitor': 'false', 'core.untrackedCache': 'false', 'tag.gpgSign': 'false', 'commit.gpgSign': 'false',
+    'protocol.allow': 'never', 'protocol.https.allow': 'always',
+    'protocol.file.allow': origin.startsWith('https:') ? 'never' : 'always',
+    'http.proxy': '', 'http.sslVerify': 'true', 'http.followRedirects': 'false',
+    'push.followTags': 'false', 'transfer.fsckObjects': 'true', 'fetch.fsckObjects': 'true',
+  };
+  const environment = (authenticated) => {
+    const entries = Object.entries(settings);
+    if (authenticated && origin.startsWith('https:')) entries.push([
+      'http.https://github.com/.extraheader', `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`]);
+    return { ...childEnv, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0',
+      GIT_COMMITTER_NAME: author[0], GIT_COMMITTER_EMAIL: author[1], GIT_CONFIG_COUNT: String(entries.length),
+      ...Object.fromEntries(entries.flatMap(([key, value], index) => [[`GIT_CONFIG_KEY_${index}`, key], [`GIT_CONFIG_VALUE_${index}`, value]])) };
+  };
+  const local = (args) => run('git', ['--git-dir', directory, ...args], environment(false), true, workspace);
+  local(['init', '--bare', '--initial-branch=main', `--template=${templates}`]);
+  local(['bundle', 'unbundle', archive]);
+  local(['update-ref', 'refs/heads/main', sha]);
+  local(['read-tree', sha]);
+  if (local(['rev-parse', 'refs/heads/main^{commit}']) !== sha) fail('Frozen Git archive does not identify the release commit.');
+  return { local, remote: (args) => run('git', ['--git-dir', directory, ...args], environment(true), true, workspace) };
+};
+const tagTarget = (tag, publisher, origin) => {
+  const refs = publisher.remote(['ls-remote', origin, `refs/tags/${tag}`, `refs/tags/${tag}^{}`]).split('\n').filter(Boolean);
   return refs.find((line) => line.endsWith('^{}'))?.split('\t')[0] ?? refs[0]?.split('\t')[0] ?? null;
 };
-const requireMain = (sha, env) => {
-  requireClean();
+const requireMain = (sha, publisher, origin) => {
+  const source = process.cwd();
+  if (publisher.local(['--work-tree', source, '-c', 'core.bare=false', 'status', '--porcelain']) !== '') {
+    fail('Commit or remove local changes before releasing.');
+  }
   if (git(['branch', '--show-current']) !== 'main' || git(['rev-parse', 'HEAD']) !== sha) fail('Publish requires unchanged main.');
-  const remote = git(['ls-remote', '--exit-code', 'origin', 'refs/heads/main'], env).split('\t')[0];
+  const remote = publisher.remote(['ls-remote', '--exit-code', origin, 'refs/heads/main']).split('\t')[0];
   if (remote !== sha) fail('Publish requires the exact remote main commit.');
 };
 const request = async (url, token, method, body, allowMissing = false, service = 'GitHub') => {
@@ -100,25 +138,27 @@ const main = async () => {
       fail('Origin must identify the configured GitHub repository over HTTPS.');
     }
   }
+  if (!origin.startsWith('https:') && !['fixture-github-token', 'review-dummy-github'].includes(token)) {
+    fail('Local Git transports require synthetic fixture credentials.');
+  }
   const author = [git(['config', '--get', 'user.name']), git(['config', '--get', 'user.email'])];
-  const gitEnv = { ...childEnv, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0',
-    GIT_COMMITTER_NAME: author[0], GIT_COMMITTER_EMAIL: author[1], GIT_CONFIG_COUNT: '6',
-    GIT_CONFIG_KEY_0: 'credential.helper', GIT_CONFIG_VALUE_0: '', GIT_CONFIG_KEY_1: 'core.sshCommand', GIT_CONFIG_VALUE_1: 'false',
-    GIT_CONFIG_KEY_2: 'http.https://github.com/.extraheader', GIT_CONFIG_VALUE_2: `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`,
-    GIT_CONFIG_KEY_3: 'push.followTags', GIT_CONFIG_VALUE_3: 'false', GIT_CONFIG_KEY_4: 'remote.origin.mirror', GIT_CONFIG_VALUE_4: 'false',
-    GIT_CONFIG_KEY_5: 'core.hooksPath', GIT_CONFIG_VALUE_5: '/dev/null' };
   const sha = git(['rev-parse', 'HEAD']);
-  requireMain(sha, gitEnv);
+  if (git(['branch', '--show-current']) !== 'main') fail('Publish requires unchanged main.');
   const tag = `v${version}`;
-  const remoteTag = tagTarget(tag, gitEnv);
-  if (remoteTag && remoteTag !== sha) fail('Release tag already points to another commit.');
   const localTag = spawnSync('git', ['rev-parse', '--verify', `refs/tags/${tag}^{commit}`], { env: childEnv, encoding: 'utf8' });
   if (localTag.status === 0 && localTag.stdout.trim() !== sha) fail('Local release tag points to another commit.');
+  const changelog = readFileSync('CHANGELOG.md', 'utf8');
+  resetWorkspace();
+  const archive = join(workspace, 'source.bundle');
+  git(['bundle', 'create', archive, 'HEAD']);
+  const bundle = readFileSync(archive);
+  let publisher = publisherGit(bundle, sha, author, origin, token);
+  requireMain(sha, publisher, origin);
+  const remoteTag = tagTarget(tag, publisher, origin);
+  if (remoteTag && remoteTag !== sha) fail('Release tag already points to another commit.');
 
   let tarball = null;
   let digest = null;
-  workspace = mkdtempSync(join(tmpdir(), 'package-release-'));
-  isolateNpm(workspace);
   if (config.npm.publish) {
     run('npm', ['run', 'build', '--ignore-scripts']);
     const [packed] = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', workspace], childEnv, true));
@@ -127,13 +167,23 @@ const main = async () => {
     tarball = resolve(workspace, packed.filename);
     digest = createHash('sha512').update(readFileSync(tarball)).digest('base64');
   }
-  requireMain(sha, gitEnv);
+  const packedBytes = tarball ? readFileSync(tarball) : null;
+  const packedName = tarball ? basename(tarball) : null;
+  resetWorkspace();
+  publisher = publisherGit(bundle, sha, author, origin, token);
+  if (packedBytes) {
+    tarball = join(workspace, packedName);
+    writeFileSync(tarball, packedBytes);
+  }
+  requireMain(sha, publisher, origin);
   if (readJson('package.json').version !== version) fail('Package version changed during release preparation.');
-  if (localTag.status !== 0) git(['tag', '--annotate', '--message', `Release ${tag}`, tag, sha], gitEnv);
-  if (!remoteTag) run('git', ['push', 'origin', `refs/tags/${tag}:refs/tags/${tag}`], gitEnv);
-  if (tagTarget(tag, gitEnv) !== sha) fail('Remote tag does not identify the merged release commit.');
+  const currentTag = tagTarget(tag, publisher, origin);
+  if (currentTag && currentTag !== sha) fail('Release tag moved during the build.');
+  publisher.local(['tag', '--no-sign', '--annotate', '--message', `Release ${tag}`, tag, sha]);
+  if (!currentTag) publisher.remote(['push', origin, `refs/tags/${tag}:refs/tags/${tag}`]);
+  if (tagTarget(tag, publisher, origin) !== sha) fail('Remote tag does not identify the merged release commit.');
 
-  requireMain(sha, gitEnv);
+  requireMain(sha, publisher, origin);
   const releaseUrl = new URL(`/repos/${config.github.repository}/releases`, api);
   const existingRelease = await request(new URL(`${releaseUrl.pathname}/tags/${encodeURIComponent(tag)}`, api), token, 'GET', null, true);
   if (existingRelease && (existingRelease.tag_name !== tag || existingRelease.target_commitish !== sha || existingRelease.draft !== false)) {
@@ -165,10 +215,10 @@ const main = async () => {
       run('npm', ['publish', tarball, '--ignore-scripts', '--tag', distributionTag, '--registry', registry.href], env, false, workspace);
     }
   }
-  requireMain(sha, gitEnv);
-  if (tagTarget(tag, gitEnv) !== sha) fail('Release tag moved before GitHub publication.');
+  requireMain(sha, publisher, origin);
+  if (tagTarget(tag, publisher, origin) !== sha) fail('Release tag moved before GitHub publication.');
   const release = existingRelease ?? await request(releaseUrl, token, 'POST', {
-    tag_name: tag, target_commitish: sha, name: tag, body: readFileSync('CHANGELOG.md', 'utf8'), draft: false, prerelease: version.split('+')[0].includes('-') });
+    tag_name: tag, target_commitish: sha, name: tag, body: changelog, draft: false, prerelease: version.split('+')[0].includes('-') });
   if (release.tag_name !== tag || release.target_commitish !== sha || release.draft !== false) fail('GitHub response does not identify the requested release.');
   console.log(`Published ${manifest.name}@${version} from ${sha}.`);
 };
