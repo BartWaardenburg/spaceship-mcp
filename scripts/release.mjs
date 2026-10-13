@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -8,11 +8,12 @@ const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 const [phase, version, ...extra] = process.argv.slice(2);
+let workspace = null;
 
 const fail = (message) => { throw new Error(message); };
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const childEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
-  !/^(?:GIT_|GH_|GITHUB_|RELEASE_|NPM_|NODE_AUTH_TOKEN$|SSH_AUTH_SOCK$|npm_config_)/.test(key)));
+  !/^(?:GIT_|GH_|GITHUB_|RELEASE_|NPM_|NODE_AUTH_TOKEN$|NODE_OPTIONS$|NODE_PATH$|SSH_AUTH_SOCK$|npm_config_)/.test(key)));
 Object.assign(childEnv, { npm_config_userconfig: '/dev/null', npm_config_update_notifier: 'false' });
 
 const isolateNpm = (workspace) => {
@@ -32,11 +33,15 @@ const git = (args, env = childEnv) => run('git', args, env, true);
 const requireClean = () => {
   if (git(['status', '--porcelain']) !== '') fail('Commit or remove local changes before releasing.');
 };
-const endpoint = (value) => {
+const endpoint = (value, hostname, token) => {
   const url = new URL(value);
-  if (url.username || url.password || url.search || url.hash ||
-    (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname)))) {
-    fail('Release endpoints must use HTTPS without embedded credentials.');
+  const fixtureToken = { 'api.github.com': 'fixture-github-token', 'registry.npmjs.org': 'fixture-npm-token' }[hostname];
+  const official = url.protocol === 'https:' && url.hostname === hostname && !url.port &&
+    (hostname === 'github.com' || url.pathname === '/');
+  const fixture = fixtureToken && token === fixtureToken && url.protocol === 'http:' &&
+    ['127.0.0.1', 'localhost'].includes(url.hostname) && url.pathname === '/';
+  if (url.username || url.password || url.search || url.hash || (!official && !fixture)) {
+    fail('Release endpoint must use its official HTTPS host or a loopback fixture with synthetic credentials.');
   }
   return url;
 };
@@ -68,7 +73,8 @@ const main = async () => {
   if (phase === 'prepare') {
     const branch = git(['branch', '--show-current']);
     if (!branch || branch === 'main') fail('Prepare the release on a feature branch.');
-    isolateNpm(mkdtempSync(join(tmpdir(), 'package-release-')));
+    workspace = mkdtempSync(join(tmpdir(), 'package-release-'));
+    isolateNpm(workspace);
     run(process.execPath, ['node_modules/release-it/bin/release-it.js', version, '--ci']);
     console.log('Release metadata prepared. Commit the changed files on this branch and open a release PR.');
     return;
@@ -84,12 +90,12 @@ const main = async () => {
   if (!token || (config.npm.publish && !npmToken)) fail('Provide dedicated RELEASE_GITHUB_TOKEN and, when npm publication is enabled, RELEASE_NPM_TOKEN.');
   if (otp && !/^\d{6,10}$/.test(otp)) fail('RELEASE_NPM_OTP must be a numeric one-time code.');
   if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(config.github.repository)) fail('Invalid GitHub release repository.');
-  const api = endpoint(config.github.apiUrl);
-  const registry = endpoint(config.npm.registry);
+  const api = endpoint(config.github.apiUrl, 'api.github.com', token);
+  const registry = endpoint(config.npm.registry, 'registry.npmjs.org', npmToken);
   const origin = git(['remote', 'get-url', 'origin']);
   if (git(['remote', 'get-url', '--push', '--all', 'origin']) !== origin) fail('Origin must have one matching fetch and push destination.');
   if (!origin.startsWith('/') && !origin.startsWith('file://')) {
-    const remote = endpoint(origin);
+    const remote = endpoint(origin, 'github.com');
     if (remote.hostname !== 'github.com' || remote.pathname.replace(/^\//, '').replace(/\.git$/, '').toLowerCase() !== config.github.repository.toLowerCase()) {
       fail('Origin must identify the configured GitHub repository over HTTPS.');
     }
@@ -111,7 +117,7 @@ const main = async () => {
 
   let tarball = null;
   let digest = null;
-  const workspace = mkdtempSync(join(tmpdir(), 'package-release-'));
+  workspace = mkdtempSync(join(tmpdir(), 'package-release-'));
   isolateNpm(workspace);
   if (config.npm.publish) {
     run('npm', ['run', 'build', '--ignore-scripts']);
@@ -167,4 +173,4 @@ const main = async () => {
   console.log(`Published ${manifest.name}@${version} from ${sha}.`);
 };
 
-main().catch((error) => { console.error(error.message); process.exitCode = 1; });
+main().finally(() => { if (workspace) rmSync(workspace, { recursive: true, force: true }); }).catch((error) => { console.error(error.message); process.exitCode = 1; });
