@@ -1,0 +1,10 @@
+{
+  "npm": {
+    "publish": true,
+    "registry": "https://registry.npmjs.org/"
+  },
+  "github": {
+    "repository": "BartWaardenburg/spaceship-mcp",
+    "apiUrl": "https://api.github.com"
+  }
+}

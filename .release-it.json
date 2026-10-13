@@ -3,14 +3,20 @@
     "commitMessage": "chore(release): v${version}",
     "tagName": "v${version}",
     "tagAnnotation": "Release v${version}",
-    "push": true,
-    "requireCleanWorkingDir": true
+    "push": false,
+    "requireCleanWorkingDir": true,
+    "commit": false,
+    "tag": false,
+    "requireUpstream": false
   },
   "npm": {
-    "publish": true
+    "publish": false,
+    "versionArgs": [
+      "--ignore-scripts"
+    ]
   },
   "github": {
-    "release": true,
+    "release": false,
     "releaseName": "v${version}",
     "tokenRef": "RELEASE_GITHUB_TOKEN"
   },
