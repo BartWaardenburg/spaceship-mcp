@@ -63,6 +63,7 @@ const main = async () => {
   if (!['prepare', 'publish'].includes(phase) || !version || version.length > 256 || !VERSION_PATTERN.test(version) || extra.length) {
     fail('Usage: pnpm release:prepare VERSION or pnpm release:publish VERSION.');
   }
+  if (version.includes('+')) fail('Use an npm version without build metadata (+suffix).');
   requireClean();
   if (phase === 'prepare') {
     const branch = git(['branch', '--show-current']);
