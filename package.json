@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@release-it/conventional-changelog": "^10.0.5",
-    "@types/node": "^20.19.30",
+    "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^4.0.18",
     "release-it": "^19.2.4",
     "tsx": "^4.21.0",
