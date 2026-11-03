@@ -47,19 +47,25 @@
   },
   "homepage": "https://github.com/bartwaardenburg/spaceship-mcp#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.26.0",
-    "zod": "^4.3.6"
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@release-it/conventional-changelog": "^10.0.5",
+    "@release-it/conventional-changelog": "^12.0.2",
     "@types/node": "^26.6.6",
-    "@vitest/coverage-v8": "^4.0.18",
-    "release-it": "^19.2.4",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.2",
-    "vitest": "^4.0.18"
+    "@vitest/coverage-v8": "^5.1.0",
+    "release-it": "^21.1.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "basic-ftp": "^6.2.5"
+    }
   }
 }
