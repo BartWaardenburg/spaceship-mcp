@@ -11,6 +11,8 @@ A community-built [Model Context Protocol](https://modelcontextprotocol.io) (MCP
 
 > **Note:** This is an unofficial, community-maintained project and is not affiliated with or endorsed by Spaceship.
 
+The server supports MCP specification 2026-07-28. Clients that use the 2025 handshake also work.
+
 ## Add To Your Editor
 
 CLI one-liners — the fastest way to get started. Pick your tool:

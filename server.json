@@ -1,16 +1,59 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.BartWaardenburg/spaceship-mcp",
+  "title": "Spaceship",
   "description": "Manage domains, DNS records, contacts, marketplace listings, and more via the Spaceship API",
-  "version": "0.2.3",
+  "repository": {
+    "url": "https://github.com/BartWaardenburg/spaceship-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://www.spaceship.com",
+  "version": "0.3.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "spaceship-mcp",
-      "version": "0.2.3",
+      "version": "0.3.0",
       "transport": {
         "type": "stdio"
-      }
+      },
+      "environmentVariables": [
+        {
+          "name": "SPACESHIP_API_KEY",
+          "description": "Spaceship API key",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SPACESHIP_API_SECRET",
+          "description": "Spaceship API secret",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SPACESHIP_CACHE_TTL",
+          "description": "Cache lifetime in seconds",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "SPACESHIP_MAX_RETRIES",
+          "description": "Maximum number of retries for failed requests",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "SPACESHIP_TOOLSETS",
+          "description": "Comma-separated list of toolsets to enable",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
     }
   ]
 }

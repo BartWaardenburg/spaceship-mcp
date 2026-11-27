@@ -1,6 +1,6 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { completable } from "@modelcontextprotocol/server";
+import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
-import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import type { SpaceshipClient } from "./spaceship-client.js";
 
 const DNS_RECORD_TYPES = [
@@ -33,10 +33,9 @@ export const staticCompleter = (options: string[]) =>
 export const registerPrompts = (server: McpServer, client: SpaceshipClient): void => {
   const completeDomain = domainCompleter(client);
 
-  server.prompt(
+  server.registerPrompt(
     "setup-domain",
-    "Guided workflow for registering and configuring a new domain",
-    { domain: completable(z.string().describe("Domain name to register (e.g. example.com)"), completeDomain) },
+    { description: "Guided workflow for registering and configuring a new domain", argsSchema: z.object({ domain: completable(z.string().describe("Domain name to register (e.g. example.com)"), completeDomain) }) },
     async ({ domain }) => ({
       messages: [{
         role: "user" as const,
@@ -59,10 +58,9 @@ export const registerPrompts = (server: McpServer, client: SpaceshipClient): voi
     }),
   );
 
-  server.prompt(
+  server.registerPrompt(
     "audit-domain",
-    "Comprehensive domain health check — reviews status, DNS, privacy, and auto-renew",
-    { domain: completable(z.string().describe("Domain name to audit (e.g. example.com)"), completeDomain) },
+    { description: "Comprehensive domain health check: reviews status, DNS, privacy, and auto-renew", argsSchema: z.object({ domain: completable(z.string().describe("Domain name to audit (e.g. example.com)"), completeDomain) }) },
     async ({ domain }) => ({
       messages: [{
         role: "user" as const,
@@ -85,12 +83,14 @@ export const registerPrompts = (server: McpServer, client: SpaceshipClient): voi
     }),
   );
 
-  server.prompt(
+  server.registerPrompt(
     "setup-email",
-    "Configure DNS records for email providers (Google Workspace, Microsoft 365, Fastmail, custom)",
     {
-      domain: completable(z.string().describe("Domain name to configure email for"), completeDomain),
-      provider: completable(z.string().describe("Email provider: google, microsoft, fastmail, or custom"), staticCompleter(EMAIL_PROVIDERS)),
+      description: "Configure DNS records for email providers (Google Workspace, Microsoft 365, Fastmail, custom)",
+      argsSchema: z.object({
+        domain: completable(z.string().describe("Domain name to configure email for"), completeDomain),
+        provider: completable(z.string().describe("Email provider: google, microsoft, fastmail, or custom"), staticCompleter(EMAIL_PROVIDERS)),
+      }),
     },
     async ({ domain, provider }) => ({
       messages: [{
@@ -118,10 +118,9 @@ export const registerPrompts = (server: McpServer, client: SpaceshipClient): voi
     }),
   );
 
-  server.prompt(
+  server.registerPrompt(
     "migrate-dns",
-    "Step-by-step DNS migration guide — export, review, recreate, and verify",
-    { domain: completable(z.string().describe("Domain name to migrate DNS for"), completeDomain) },
+    { description: "Step-by-step DNS migration guide: export, review, recreate, and verify", argsSchema: z.object({ domain: completable(z.string().describe("Domain name to migrate DNS for"), completeDomain) }) },
     async ({ domain }) => ({
       messages: [{
         role: "user" as const,
@@ -142,10 +141,9 @@ export const registerPrompts = (server: McpServer, client: SpaceshipClient): voi
     }),
   );
 
-  server.prompt(
+  server.registerPrompt(
     "list-for-sale",
-    "Guided SellerHub listing workflow — create listing, set pricing, generate checkout link",
-    { domain: completable(z.string().describe("Domain name to list for sale"), completeDomain) },
+    { description: "Guided SellerHub listing workflow: create listing, set pricing, generate checkout link", argsSchema: z.object({ domain: completable(z.string().describe("Domain name to list for sale"), completeDomain) }) },
     async ({ domain }) => ({
       messages: [{
         role: "user" as const,
@@ -168,12 +166,14 @@ export const registerPrompts = (server: McpServer, client: SpaceshipClient): voi
     }),
   );
 
-  server.prompt(
+  server.registerPrompt(
     "dns-records",
-    "List DNS records for a domain, optionally filtered by type",
     {
-      domain: completable(z.string().describe("Domain name"), completeDomain),
-      type: completable(z.string().optional().describe("DNS record type filter"), staticCompleter(DNS_RECORD_TYPES)),
+      description: "List DNS records for a domain, optionally filtered by type",
+      argsSchema: z.object({
+        domain: completable(z.string().describe("Domain name"), completeDomain),
+        type: completable(z.string().describe("DNS record type filter"), staticCompleter(DNS_RECORD_TYPES)).optional(),
+      }),
     },
     async ({ domain, type }) => ({
       messages: [{
@@ -188,12 +188,14 @@ export const registerPrompts = (server: McpServer, client: SpaceshipClient): voi
     }),
   );
 
-  server.prompt(
+  server.registerPrompt(
     "set-privacy",
-    "Set privacy level for a domain",
     {
-      domain: completable(z.string().describe("Domain name"), completeDomain),
-      level: completable(z.string().describe("Privacy level: high or public"), staticCompleter(PRIVACY_LEVELS)),
+      description: "Set privacy level for a domain",
+      argsSchema: z.object({
+        domain: completable(z.string().describe("Domain name"), completeDomain),
+        level: completable(z.string().describe("Privacy level: high or public"), staticCompleter(PRIVACY_LEVELS)),
+      }),
     },
     async ({ domain, level }) => ({
       messages: [{
@@ -206,12 +208,14 @@ export const registerPrompts = (server: McpServer, client: SpaceshipClient): voi
     }),
   );
 
-  server.prompt(
+  server.registerPrompt(
     "update-nameservers",
-    "Update nameservers for a domain",
     {
-      domain: completable(z.string().describe("Domain name"), completeDomain),
-      provider: completable(z.string().describe("Nameserver provider: basic or custom"), staticCompleter(NAMESERVER_PROVIDERS)),
+      description: "Update nameservers for a domain",
+      argsSchema: z.object({
+        domain: completable(z.string().describe("Domain name"), completeDomain),
+        provider: completable(z.string().describe("Nameserver provider: basic or custom"), staticCompleter(NAMESERVER_PROVIDERS)),
+      }),
     },
     async ({ domain, provider }) => ({
       messages: [{
