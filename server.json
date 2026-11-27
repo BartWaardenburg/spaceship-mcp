@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://www.spaceship.com",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "spaceship-mcp",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "transport": {
         "type": "stdio"
       },
