@@ -8,12 +8,21 @@ type PromptCallback = (args: Record<string, string>) => Promise<{
 }>;
 
 type RegisteredPrompt = { callback: PromptCallback; enabled: boolean };
-type ServerWithPrompts = { _registeredPrompts: Record<string, RegisteredPrompt> };
+type StoredPrompt = { handler: (args: Record<string, string>, ctx: unknown) => ReturnType<PromptCallback>; enabled: boolean };
+type ServerWithPrompts = { _registeredPrompts: Record<string, StoredPrompt> };
 
 const mockClient = {} as SpaceshipClient;
 
-const getPrompts = (): Record<string, RegisteredPrompt> =>
-  (createServer(mockClient) as unknown as ServerWithPrompts)._registeredPrompts;
+// SDK v2 stores each prompt as `handler(args, ctx)`. Expose it as `callback(args)`.
+const getPrompts = (): Record<string, RegisteredPrompt> => {
+  const stored = (createServer(mockClient) as unknown as ServerWithPrompts)._registeredPrompts;
+  return Object.fromEntries(
+    Object.entries(stored).map(([name, prompt]) => [
+      name,
+      { enabled: prompt.enabled, callback: (args: Record<string, string>) => prompt.handler(args, {}) },
+    ]),
+  );
+};
 
 describe("domainCompleter", () => {
   it("filters domains by prefix", async () => {

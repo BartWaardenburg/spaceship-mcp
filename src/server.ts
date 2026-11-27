@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import type { SpaceshipClient } from "./spaceship-client.js";
 import { registerDnsRecordTools } from "./tools/dns-records.js";
 import { registerDnsRecordCreatorTools } from "./tools/dns-record-creators.js";
@@ -33,6 +33,14 @@ export const parseToolsets = (env?: string): Set<Toolset> => {
   return valid.size > 0 ? valid : new Set(ALL_TOOLSETS);
 };
 
+const INSTRUCTIONS = [
+  "Manage domains, DNS records, contacts and marketplace listings with the Spaceship API.",
+  "To find a domain, call list_domains or check_domain_availability. Then call get_domain for details.",
+  "To change DNS, call list_dns_records first. Then call save_dns_records or a create tool such as create_a_record.",
+  "Set the env vars SPACESHIP_API_KEY and SPACESHIP_API_SECRET before you start.",
+  "Tools such as delete_dns_records change live data. Confirm with the user before you call them.",
+].join("\n");
+
 type ToolRegisterer = (server: McpServer, client: SpaceshipClient) => void;
 
 const toolsetRegistry: Record<Toolset, ToolRegisterer[]> = {
@@ -49,15 +57,21 @@ export const createServer = (
   client: SpaceshipClient,
   toolsets?: Set<Toolset>,
 ): McpServer => {
-  const server = new McpServer({
-    name: "spaceship-mcp",
-    version,
-  });
+  const server = new McpServer(
+    {
+      name: "spaceship-mcp",
+      title: "Spaceship",
+      version,
+      websiteUrl: "https://www.spaceship.com",
+    },
+    { instructions: INSTRUCTIONS },
+  );
 
   const enabled = toolsets ?? new Set(ALL_TOOLSETS);
   const registered = new Set<ToolRegisterer>();
 
-  for (const toolset of enabled) {
+  // Iterate the fixed list, not the user input, so tools/list has one stable order.
+  for (const toolset of ALL_TOOLSETS.filter((t) => enabled.has(t))) {
     const registerers = toolsetRegistry[toolset];
 
     for (const register of registerers) {
