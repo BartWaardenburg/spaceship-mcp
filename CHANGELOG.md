@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/BartWaardenburg/spaceship-mcp/compare/v0.4.0...v0.4.1) (2026-11-27)
+
+### Bug Fixes
+
+* copy pnpm-workspace.yaml into the Docker build and build the image in CI ([7840f3f](https://github.com/BartWaardenburg/spaceship-mcp/commit/7840f3f8cee15d56a0f428e410bd350dcf31314d))
+
+# [0.4.0](https://github.com/BartWaardenburg/spaceship-mcp/compare/v0.3.0...v0.4.0) (2026-11-27)
+
+### Features
+
+* move to MCP TypeScript SDK v2 and spec 2026-07-28 ([#33](https://github.com/BartWaardenburg/spaceship-mcp/issues/33)) ([21dd0db](https://github.com/BartWaardenburg/spaceship-mcp/commit/21dd0db7780cf27a0dada65756302eda5c200fce))
+
 # [0.3.0](https://github.com/BartWaardenburg/spaceship-mcp/compare/v0.2.4...v0.3.0) (2026-02-11)
 
 

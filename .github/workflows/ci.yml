@@ -48,6 +48,13 @@ jobs:
         with:
           path: coverage
 
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: docker build -t ci-image .
+
   deploy-coverage:
     needs: test
     if: github.ref == 'refs/heads/main'
