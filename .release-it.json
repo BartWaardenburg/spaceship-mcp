@@ -3,16 +3,17 @@
     "commitMessage": "chore(release): v${version}",
     "tagName": "v${version}",
     "tagAnnotation": "Release v${version}",
-    "push": true,
-    "requireCleanWorkingDir": true
+    "push": false,
+    "requireCleanWorkingDir": true,
+    "commit": false,
+    "tag": false
   },
   "npm": {
-    "publish": true
+    "publish": false,
+    "skipChecks": true
   },
   "github": {
-    "release": true,
-    "releaseName": "v${version}",
-    "tokenRef": "GITHUB_TOKEN"
+    "release": false
   },
   "plugins": {
     "@release-it/conventional-changelog": {
