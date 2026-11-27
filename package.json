@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "prepublishOnly": "pnpm build",
-    "release": "GITHUB_TOKEN=$(gh auth token) release-it"
+    "release": "node scripts/release.mjs"
   },
   "repository": {
     "type": "git",
